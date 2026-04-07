@@ -88,7 +88,7 @@ tr:hover td{background:var(--bg)}
 .bme{background:#E6EBFF;color:#2D3A8C}.bgf{background:var(--blue-l);color:var(--blue)}
 .bsa{background:var(--green-l);color:var(--green)}.bbs{background:var(--amber-l);color:var(--amber)}
 .pos{color:var(--green)}.neg{color:var(--red)}
-.kpi-board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:1.25rem}
+.kpi-board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:1.5rem}
 .kb{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1rem 1.25rem}
 .kb-label{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--t3);margin-bottom:.625rem}
 .kb-title{font-size:11px;color:var(--t2);margin-bottom:.25rem;display:flex;align-items:center;gap:5px}
@@ -147,8 +147,19 @@ tr:hover td{background:var(--bg)}
     <div class="sc" id="sc-mkt"><div class="sn">스토어 마케팅</div><div class="sr">로딩 중...</div></div>
     <div class="sc" id="sc-sale"><div class="sn">스토어 판매성과</div><div class="sr">로딩 중...</div></div>
   </div>
+  <div class="mtabs">
+    <div class="mtab on" onclick="setTab(0)">클릭수 · 유입수</div>
+    <div class="mtab" onclick="setTab(1)">매출</div>
+    <div class="mtab" onclick="setTab(2)">장바구니 매출</div>
+    <div class="mtab" onclick="setTab(3)">ROAS · 실질 ROAS</div>
+    <div class="mtab" onclick="setTab(4)">전환율 · 결제율</div>
+  </div>
   <!-- 요약 KPI 보드 -->
-  <div class="kpi-board" id="kpi-board">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.625rem;margin-top:1.25rem">
+    <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--t3)">요약 지표</div>
+    <div style="font-size:11px;color:var(--t2)" id="kpi-tab-label">현재 탭: 클릭수·유입수</div>
+  </div>
+  <div class="kpi-board" id="kpi-board" style="margin-top:0">
     <div class="kb">
       <div class="kb-label">매체 합계</div>
       <div class="kb-val" id="kb-media-total">—</div>
@@ -181,13 +192,6 @@ tr:hover td{background:var(--bg)}
         <div class="kb-row"><span class="kb-row-label">미추적 비중</span><span class="kb-row-val" id="kb-sale-ratio">—</span></div>
       </div>
     </div>
-  </div>
-  <div class="mtabs">
-    <div class="mtab on" onclick="setTab(0)">클릭수 · 유입수</div>
-    <div class="mtab" onclick="setTab(1)">매출</div>
-    <div class="mtab" onclick="setTab(2)">장바구니 매출</div>
-    <div class="mtab" onclick="setTab(3)">ROAS · 실질 ROAS</div>
-    <div class="mtab" onclick="setTab(4)">전환율 · 결제율</div>
   </div>
   <div class="split">
     <div class="panel">
@@ -555,7 +559,10 @@ const bOpt={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:f
 function setTab(i,skipTabHighlight){
   curTab=i;
   if(!window._tabs)return;
-  if(!skipTabHighlight)document.querySelectorAll('.mtab').forEach((el,idx)=>el.classList.toggle('on',idx===i));
+  if(!skipTabHighlight){
+    document.querySelectorAll('.mtab').forEach((el,idx)=>el.classList.toggle('on',idx===i));
+    renderKpiBoard();
+  }
   const t=window._tabs[i];
   document.getElementById('lt').textContent=t.lt;document.getElementById('rt').textContent=t.rt;
   document.getElementById('tl').textContent=t.tl;document.getElementById('ln').textContent=t.ln;
@@ -582,6 +589,7 @@ function setAttr(attr){
     el.classList.toggle('on', el.dataset.attr === attr);
   });
   renderDashboard();
+  renderKpiBoard();
 }
 
 function renderKpiBoard(){
@@ -634,12 +642,25 @@ function renderKpiBoard(){
   const $=id=>document.getElementById(id);
   if(!$('kb-media-total'))return;
 
+  // 현재 탭에 맞는 KPI 카드 강조 (border 색상)
+  const tabColors=['#185FA5','#185FA5','#3B6D11','#185FA5','#534AB7'];
+  const kbs=document.querySelectorAll('.kb');
+  kbs.forEach(kb=>kb.style.borderColor='');
+  if(kbs[0])kbs[0].style.borderLeftWidth='3px';
+  if(kbs[1])kbs[1].style.borderLeftWidth='3px';
+  if(kbs[2])kbs[2].style.borderLeftWidth='3px';
+
   $('kb-media-total').textContent=won(mediaCost);
   $('kb-media-total').nextElementSibling.textContent='광고비 합계 (VAT+) · 전환매출 '+won(mediaTotal);
   $('kb-gfa-rev').textContent=won(gfaRevM);
   $('kb-sa-rev').textContent=won(saRevM);
   $('kb-meta-rev').textContent=won(meRevM);
   $('kb-bsa-rev').textContent='—';
+
+  // 탭별 추가 컨텍스트
+  const tabMetricLabels=['클릭수·유입수','매출','장바구니 매출','ROAS·실질ROAS','전환율·결제율'];
+  const kpiLabelEl=document.getElementById('kpi-tab-label');
+  if(kpiLabelEl)kpiLabelEl.textContent='현재 탭: '+tabMetricLabels[curTab];
 
   $('kb-mkt-total').textContent=won(mktTotal);
   $('kb-mkt-sub').textContent=`전체채널 결제금액 (${attrLabel})`;
