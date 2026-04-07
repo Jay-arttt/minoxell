@@ -491,7 +491,7 @@ function renderDashboard(){
      tn:'* BSA = SA 브랜드검색광고 캠페인유형 / SA 클릭수는 쇼핑+파워링크만 집계',
      ins:[{t:'i',tx:`<b>GFA 클릭(${Math.round(gT.clicks).toLocaleString()}) vs 성과형 유입(${Math.round(mkt_perf_in).toLocaleString()})</b> — ${Math.abs(Math.round(mkt_perf_in-gT.clicks)).toLocaleString()}건 차이`},{t:'w',tx:'<b>META → 사용자정의 채널</b>로 통계에 집계. 메타 광고비 증감 시 사용자정의 매출 변동 확인'}]},
     {lt:'매체 대시보드 — 매출',rt:curAttr==='14'?'스마트스토어 통계 — 매출 (+14일)':'스마트스토어 통계 — 매출 (마지막클릭)',tl:'매체 매출 vs 통계 매출',
-     lk:[{c:'#3b5998',l:'META',v:won(meT.rev),s:'전환매출'},{c:'#185FA5',l:'GFA',v:won(gT.rev),s:'전환매출'},{c:'#3B6D11',l:'SA',v:won(saT.rev-saByType.brand.rev),s:'전환매출'},{c:'#854F0B',l:'BSA',v:won(saByType.brand.rev),s:'전환매출'}],
+     lk:[{c:'#3b5998',l:'META',v:won(meT.rev),s:'전환매출'},{c:'#185FA5',l:'GFA',v:won(gT.rev),s:'전환매출'},{c:'#3B6D11',l:'SA',v:won(saT.rev-saByType.brand.rev),s:'전환매출'},{c:'#854F0B',l:'BSA',v:won(bsaRev),s:'전환매출'}],
      rk:[{c:'#3b5998',l:'META(사용자정의)',v:won(meRm),s:'+14일'},{c:'#185FA5',l:'성과형디스플레이',v:won(mkt_perf_rm),s:'+14일'},{c:'#3B6D11',l:'검색광고(쇼핑+사이트)',v:won((sum(mkt_shopping,mkR14)||sum(mkt_shopping,mkRl))+(sum(mkt_power,mkR14)||sum(mkt_power,mkRl))),s:'+14일'},{c:'#854F0B',l:'브랜드검색(일반형)',v:won(sum(mkt_brand,mkR14)||sum(mkt_brand,mkRl)),s:'+14일'}],
      ll:[{c:'#3b5998',l:'META'},{c:'#185FA5',l:'GFA'},{c:'#3B6D11',l:'SA'},{c:'#854F0B',l:'BSA(브랜드)'}],
      rl:[{c:'#3b5998',l:'META(사용자정의)'},{c:'#185FA5',l:'성과형디스플레이'},{c:'#3B6D11',l:'검색광고'},{c:'#854F0B',l:'브랜드검색'}],
@@ -503,7 +503,7 @@ function renderDashboard(){
        ['<span class="badge bme">META</span>',won(meT.rev),'사용자정의',won(meRm),ds(meRm,meT.rev)],
        ['<span class="badge bgf">GFA</span>',won(gT.rev),'성과형디스플레이',won(mkt_perf_rm),ds(mkt_perf_rm,gT.rev)],
        ['<span class="badge bsa">SA</span>',won(saT.rev-saByType.brand.rev),'검색광고(쇼핑+사이트)',won((sum(mkt_shopping,mkR14)||sum(mkt_shopping,mkRl))+(sum(mkt_power,mkR14)||sum(mkt_power,mkRl))),ds((sum(mkt_shopping,mkR14)||sum(mkt_shopping,mkRl))+(sum(mkt_power,mkR14)||sum(mkt_power,mkRl)),saT.rev-saByType.brand.rev)],
-       ['<span class="badge bbs">BSA</span>',won(saByType.brand.rev),'브랜드검색(일반형)',won(sum(mkt_brand,mkR14)||sum(mkt_brand,mkRl)),ds(sum(mkt_brand,mkR14)||sum(mkt_brand,mkRl),saByType.brand.rev)],
+       ['<span class="badge bbs">BSA</span>',won(bsaRev),'브랜드검색(일반형)',won(sum(mkt_brand,mkR14)||sum(mkt_brand,mkRl)),ds(sum(mkt_brand,mkR14)||sum(mkt_brand,mkRl),saByType.brand.rev)],
        ['판매성과(전체)','—','전체',won(slTot),'—'],
      ],
      tn:'* 판매성과 = 재구매·직접유입 등 미추적 매출 포함 전체',
@@ -528,7 +528,7 @@ function renderDashboard(){
      th:['매체·기준','플랫폼 ROAS','실질 ROAS','비고'],
      tr:[['<span class="badge bme">META</span>',meT.roas+'%','—','플랫폼 수치만'],['<span class="badge bgf">GFA 플랫폼</span>',gT.roas+'%','—','기여 범위 넓음'],['<span class="badge bgf">GFA 실질(합산)</span>','—',pct(gRoasR),'(성과형+공통)/광고비'],['<span class="badge bgf">GFA 성과형만</span>','—',pct(gRoasO),'마지막클릭/광고비'],['<span class="badge bsa">SA</span>',saT.roas+'%','연동필요','광고비 추가 후']],
      tn:'* 같은 광고비라도 기준에 따라 ROAS가 크게 달라짐',
-     ins:[{t:'d',tx:`<b>GFA 플랫폼(${gT.roas}%) vs 실질(${pct(gRoasR)})</b> — 플랫폼이 더 넓은 기여 기간 적용`},{t:'w',tx:`<b>성과형만 ${pct(gRoasO)}</b> — 서비스공통(${won(svcR)}) 포함 시 실질 ROAS 상승`}]},
+     ins:[{t:'d',tx:`<b>GFA 플랫폼(${gT.roas}%) vs 실질(${pct(gRoasR)})</b> — 플랫폼이 더 넓은 기여 기간 적용`},{t:'w',tx:`<b>GFA 성과형 실질 ROAS: ${pct(gRoasO)}</b> (마지막클릭 기준)`}]},
     {lt:'매체 대시보드 — 전환율 (CVR)',rt:'스마트스토어 통계 — 결제율',tl:'전환율 vs 결제율',
      lk:[{c:'#3b5998',l:'META',v:meT.cvr+'%',s:'CVR'},{c:'#185FA5',l:'GFA',v:gT.cvr+'%',s:'CVR'},{c:'#3B6D11',l:'SA',v:saT.cvr+'%',s:'CVR'},{c:'#854F0B',l:'BSA',v:'—',s:'연동예정'}],
      rk:[{c:'#3b5998',l:'META(사용자정의)',v:pct(meCvr2),s:'결제수/유입수'},{c:'#185FA5',l:'성과형디스플레이',v:pct(gCvr2),s:'결제수/유입수'},{c:'#3B6D11',l:'검색광고',v:pct(saCvr2),s:'결제수/유입수'},{c:'#854F0B',l:'브랜드검색',v:sum(mkt_brand,mkIn)>0?pct(sum(mkt_brand,mkOrd)/sum(mkt_brand,mkIn)):'—',s:'결제수/유입수'}],
@@ -607,6 +607,12 @@ function renderKpiBoard(){
   const mkt    =filterByDate(RAW.mkt,  mkDateC,from,to);
   const sale   =filterByDate(RAW.sale, slDateC,from,to);
 
+  const {saCampType}=COLS;
+  const sa_brand_kb=saAll.filter(r=>nrm(r[saCampType]).includes('브랜드검색'));
+  const sa_nonbrand_kb=saAll.filter(r=>!nrm(r[saCampType]).includes('브랜드검색'));
+  const bsaClicks=sum(sa_brand_kb,saClick);
+  const bsaRev=sum(sa_brand_kb,saRev);
+  const bsaCost=sum(sa_brand_kb,saCost);
   const mkt_perf=mkt.filter(r=>nrm(r[mkName]).includes('성과형'));
   const mkt_sa  =mkt.filter(r=>{const g=nrm(r[mkGrp]);return g==='검색광고'||g==='쇼핑';});
   const mkt_meta=mkt.filter(r=>nrm(r[mkName]).includes('사용자정의'));
@@ -630,14 +636,14 @@ function renderKpiBoard(){
   const tabs=[
     // 0: 클릭수·유입수
     {c1:{lbl:'매체 합계 — 클릭수', total:Math.round(gfaClicks+saClicks+meClicks).toLocaleString()+'건', sub:'전체 매체 클릭수 합계',
-      rows:[{l:'GFA',v:Math.round(gfaClicks).toLocaleString()+'건'},{l:'SA',v:Math.round(saClicks).toLocaleString()+'건'},{l:'META',v:Math.round(meClicks).toLocaleString()+'건'},{l:'BSA',v:'—'}]},
+      rows:[{l:'GFA',v:Math.round(gfaClicks).toLocaleString()+'건'},{l:'SA',v:Math.round(saClicks).toLocaleString()+'건'},{l:'META',v:Math.round(meClicks).toLocaleString()+'건'},{l:'BSA(브랜드검색)',v:bsaCost>0?pct(bsaRev/bsaCost):'—'}]},
      c2:{lbl:'스토어 통계 — 유입수 합계', total:Math.round(sum(mkt,mkIn)).toLocaleString()+'명', sub:'전체채널 유입수',
       rows:[{l:'GFA(성과형)',v:Math.round(sum(mkt_perf,mkIn)).toLocaleString()+'명'},{l:'SA(검색광고)',v:Math.round(sum(mkt_sa,mkIn)).toLocaleString()+'명'},{l:'META(사용자정의)',v:Math.round(sum(mkt_meta,mkIn)).toLocaleString()+'명'},{l:'서비스공통',v:Math.round(sum(mkt_svc,mkIn)).toLocaleString()+'명'}]},
      c3:{lbl:'스토어 통계 — 고객수 합계', total:Math.round(sum(mkt,mkCust)).toLocaleString()+'명', sub:'전체채널 고객수',
       rows:[{l:'GFA(성과형)',v:Math.round(sum(mkt_perf,mkCust)).toLocaleString()+'명'},{l:'SA(검색광고)',v:Math.round(sum(mkt_sa,mkCust)).toLocaleString()+'명'},{l:'META(사용자정의)',v:Math.round(sum(mkt_meta,mkCust)).toLocaleString()+'명'},{l:'서비스공통',v:Math.round(sum(mkt_svc,mkCust)).toLocaleString()+'명'}]}},
     // 1: 매출
     {c1:{lbl:'매체 합계 — 전환매출', total:won(gfaRevT+saRevT+meRevT), sub:'각 매체 플랫폼 전환매출 합계',
-      rows:[{l:'GFA',v:won(gfaRevT)},{l:'SA',v:won(saRevT)},{l:'META',v:won(meRevT)},{l:'BSA',v:'—'}]},
+      rows:[{l:'GFA',v:won(gfaRevT)},{l:'SA',v:won(saRevT-bsaRev)},{l:'META',v:won(meRevT)},{l:'BSA(브랜드검색)',v:won(bsaRev)}]},
      c2:{lbl:'스토어 통계 — 결제금액 합계', total:won(mktTotal), sub:`전체채널 결제금액 (${attrLabel})`,
       rows:[{l:'GFA(성과형)',v:won(mktGfa)},{l:'SA(검색광고)',v:won(mktSa)},{l:'META(사용자정의)',v:won(mktMeta)},{l:'서비스공통',v:won(mktSvc)}]},
      c3:{lbl:'스토어 통계 — 판매성과 합계', total:won(saleTotal), sub:'전체 결제금액 (미추적 포함)',
@@ -653,7 +659,7 @@ function renderKpiBoard(){
     {c1:{lbl:'매체 합계 — 광고비', total:won(gfaCost+saCostT+meCostT), sub:'광고비 합계 (VAT+)',
       rows:[{l:'GFA ROAS',v:gfaCost>0?pct(gfaRevT/gfaCost):'—'},{l:'SA ROAS',v:saCostT>0?pct(saRevT/saCostT):'—'},{l:'META ROAS',v:meCostT>0?pct(meRevT/meCostT):'—'},{l:'BSA',v:'—'}]},
      c2:{lbl:`실질 ROAS — 스토어 통계 (${attrLabel})`, total:gfaCost>0?pct(mktGfa/gfaCost):'—', sub:'GFA 성과형 실질 ROAS',
-      rows:[{l:'GFA 실질(성과형)',v:gfaCost>0?pct(mktGfa/gfaCost):'—'},{l:'GFA+공통 포함',v:gfaCost>0?pct((mktGfa+mktSvc)/gfaCost):'—'},{l:'SA 실질',v:saCostT>0?pct(mktSa/saCostT):'—'},{l:'META 실질',v:meCostT>0?pct(mktMeta/meCostT):'—'}]},
+      rows:[{l:'GFA 실질(성과형)',v:gfaCost>0?pct(mktGfa/gfaCost):'—'},{l:'SA 실질',v:saCostT>0?pct(mktSa/saCostT):'—'},{l:'META 실질',v:meCostT>0?pct(mktMeta/meCostT):'—'},{l:'BSA 실질',v:bsaCost>0?pct(bsaRev/bsaCost):'—'}]},
      c3:{lbl:'스토어 통계 — 판매성과', total:won(saleTotal), sub:'전체 결제금액',
       rows:[{l:'마케팅분석 합계',v:won(mktTotal)},{l:'미추적 매출',v:won(unmkt)},{l:'미추적 비중',v:pct(saleTotal>0?unmkt/saleTotal:0)},{l:'',v:''}]}},
     // 4: 전환율·결제율
