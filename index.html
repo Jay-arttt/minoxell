@@ -104,16 +104,16 @@ tr:hover td{background:var(--bg)}
 <!-- 기간 필터 바 -->
 <div class="period-bar">
   <div class="period-label">기간</div>
-  <button class="ppill" onclick="setPeriod('yesterday')">어제</button>
-  <button class="ppill" onclick="setPeriod('7d')">7일</button>
-  <button class="ppill" onclick="setPeriod('14d')">14일</button>
-  <button class="ppill on" onclick="setPeriod('30d')">30일</button>
-  <button class="ppill" onclick="setPeriod('60d')">60일</button>
-  <button class="ppill" onclick="setPeriod('90d')">90일</button>
-  <button class="ppill" onclick="setPeriod('last_week')">지난주</button>
-  <button class="ppill" onclick="setPeriod('week_before')">지지난주</button>
-  <button class="ppill" onclick="setPeriod('this_month')">이번달</button>
-  <button class="ppill" onclick="setPeriod('last_month')">지난달</button>
+  <button class="ppill" data-key="yesterday" onclick="setPeriod('yesterday')">어제</button>
+  <button class="ppill" data-key="7d" onclick="setPeriod('7d')">7일</button>
+  <button class="ppill" data-key="14d" onclick="setPeriod('14d')">14일</button>
+  <button class="ppill" data-key="30d" onclick="setPeriod('30d')">30일</button>
+  <button class="ppill" data-key="60d" onclick="setPeriod('60d')">60일</button>
+  <button class="ppill" data-key="90d" onclick="setPeriod('90d')">90일</button>
+  <button class="ppill" data-key="last_week" onclick="setPeriod('last_week')">지난주</button>
+  <button class="ppill" data-key="week_before" onclick="setPeriod('week_before')">지지난주</button>
+  <button class="ppill" data-key="this_month" onclick="setPeriod('this_month')">이번달</button>
+  <button class="ppill" data-key="last_month" onclick="setPeriod('last_month')">지난달</button>
   <div class="period-custom">
     <input type="date" id="date-from">
     <span style="color:var(--t3);font-size:11px">~</span>
@@ -237,16 +237,11 @@ function getPeriodRange(key){
 
 function setPeriod(key){
   document.querySelectorAll('.ppill').forEach(el=>el.classList.remove('on'));
-  // 커스텀이 아닌 경우 버튼 on 표시
-  if(key!=='custom'){
-    event.currentTarget.classList.add('on');
-  } else {
-    // custom은 apply 버튼 클릭 시
-  }
+  const btn=document.querySelector(`.ppill[data-key="${key}"]`);
+  if(btn)btn.classList.add('on');
   const range=getPeriodRange(key);
   if(!range)return;
   curFrom=range.from;curTo=range.to;
-  // date input 동기화
   document.getElementById('date-from').value=range.from;
   document.getElementById('date-to').value=range.to;
   renderDashboard();
@@ -272,43 +267,125 @@ function filterByDate(rows,dateCol,from,to){
   if(!dateCol||!from||!to)return rows;
   return rows.filter(r=>{
     const d=parseDate(r[dateCol]);
-    if(!d)return true; // 날짜 없으면 포함
+    if(!d)return false; // 날짜 파싱 실패 시 제외
     return d>=from&&d<=to;
   });
 }
 
 function renderDashboard(){
   if(!COLS.ready)return;
-  const {saDateC,gDateC,meDateC,mkDateC,slDateC,saClick,saRev,saRoas,saCvr,saCost,gClick,gRev,gRoas,gCvr,gCost,meClick,meRev,meRoas,meCvr,meCost,mkGrp,mkName,mkDet,mkIn,mkRl,mkR14,mkOrd,slRev}=COLS;
+  const {saDateC,gDateC,meDateC,mkDateC,slDateC,
+    saCampType,saCampName,saAdGroup,saClick,saRev,saCost,saCartRev,saCartOrd,saOrd,
+    gCampName,gAdGroup,gClick,gRev,gCost,gCartRev,gCartOrd,gOrd,
+    meClick,meRev,meRoas,meCvr,meCost,
+    mkGrp,mkName,mkDet,mkIn,mkRl,mkR14,mkOrd,slRev}=COLS;
 
   const from=curFrom,to=curTo;
-
-  const sa  =filterByDate(RAW.sa,   saDateC, from, to);
-  const gfa =filterByDate(RAW.gfa,  gDateC,  from, to);
-  const meta=filterByDate(RAW.meta, meDateC, from, to);
-  const mkt =filterByDate(RAW.mkt,  mkDateC, from, to);
-  const sale=filterByDate(RAW.sale, slDateC, from, to);
-
   const nrm=s=>(s||'').toString().trim();
-  const gfaRows=mkt.filter(r=>nrm(r[mkName]).includes('성과형'));
-  const saRows =mkt.filter(r=>{const g=nrm(r[mkGrp]);return g==='검색광고'||g==='쇼핑';});
-  const meRows =mkt.filter(r=>nrm(r[mkName]).includes('사용자정의'));
-  const svcCom =mkt.filter(r=>nrm(r[mkName]).includes('네이버-서비스')&&(nrm(r[mkDet])==='공통'||nrm(r[mkDet])===''));
 
-  const saT ={clicks:sum(sa,saClick),rev:sum(sa,saRev),roas:sa.length?num(sa[sa.length-1][saRoas]):0,cvr:sa.length?num(sa[sa.length-1][saCvr]):0,cost:sum(sa,saCost)};
-  const gT  ={clicks:sum(gfa,gClick),rev:sum(gfa,gRev),roas:gfa.length?num(gfa[gfa.length-1][gRoas]):0,cvr:gfa.length?num(gfa[gfa.length-1][gCvr]):0,cost:sum(gfa,gCost)};
-  const meT ={clicks:sum(meta,meClick),rev:sum(meta,meRev),roas:meta.length?num(meta[meta.length-1][meRoas]):0,cvr:meta.length?num(meta[meta.length-1][meCvr]):0,cost:sum(meta,meCost)};
+  const saAll  =filterByDate(RAW.sa,   saDateC, from, to);
+  const gfaAll =filterByDate(RAW.gfa,  gDateC,  from, to);
+  const meta   =filterByDate(RAW.meta, meDateC, from, to);
+  const mkt    =filterByDate(RAW.mkt,  mkDateC, from, to);
+  const sale   =filterByDate(RAW.sale, slDateC, from, to);
 
-  const gIn=sum(gfaRows,mkIn),saIn=sum(saRows,mkIn),meIn=sum(meRows,mkIn);
-  const gRm =sum(gfaRows,mkR14)||sum(gfaRows,mkRl);
-  const saRm=sum(saRows,mkR14)||sum(saRows,mkRl);
-  const meRm=sum(meRows,mkR14)||sum(meRows,mkRl);
-  const svcR=sum(svcCom,mkR14)||sum(svcCom,mkRl);
-  const slTot=sum(sale,slRev);
-  const gOrd=sum(gfaRows,mkOrd),saOrd=sum(saRows,mkOrd),meOrd=sum(meRows,mkOrd);
-  const gCvr2=gIn>0?gOrd/gIn:0,saCvr2=saIn>0?saOrd/saIn:0,meCvr2=meIn>0?meOrd/meIn:0;
-  const gRoasR=gT.cost>0?(gRm+svcR)/gT.cost:0;
-  const gRoasO=gT.cost>0?gRm/gT.cost:0;
+  // ── SA 캠페인유형별 분리 ──────────────────────────────
+  const sa_shopping = saAll.filter(r=>nrm(r[saCampType])==='쇼핑검색광고');
+  const sa_power    = saAll.filter(r=>nrm(r[saCampType])==='파워링크');
+  const sa_brand    = saAll.filter(r=>nrm(r[saCampType]).includes('브랜드검색'));
+  const sa_all      = saAll; // 전체 SA 합산용
+
+  // ── GFA 캠페인명별 분리 ──────────────────────────────
+  // 성과형: ADVoost 제외, 광고그룹명에 올리브영 제외
+  const gfa_perf  = gfaAll.filter(r=>{
+    const camp=nrm(r[gCampName]);
+    const grp =nrm(r[gAdGroup]);
+    return !camp.includes('ADVoost') && !grp.includes('올리브영');
+  });
+  // ADVoost
+  const gfa_adv   = gfaAll.filter(r=>nrm(r[gCampName]).includes('ADVoost'));
+  const gfa_all   = gfaAll;
+
+  // ── 스토어 통계 채널별 행 ───────────────────────────
+  const mkt_shopping = mkt.filter(r=>nrm(r[mkName])==='네이버 쇼핑검색광고');
+  const mkt_power    = mkt.filter(r=>nrm(r[mkName])==='네이버 사이트검색광고');
+  const mkt_brand    = mkt.filter(r=>nrm(r[mkName]).includes('브랜드검색'));
+  const mkt_perf     = mkt.filter(r=>nrm(r[mkName])==='네이버 성과형디스플레이광고');
+  const mkt_adv      = mkt.filter(r=>nrm(r[mkName])==='네이버 ADVoost쇼핑');
+  const meRows       = mkt.filter(r=>nrm(r[mkName]).includes('사용자정의'));
+  const svcCom       = mkt.filter(r=>nrm(r[mkName]).includes('네이버-서비스')&&(nrm(r[mkDet])==='공통'||nrm(r[mkDet])===''));
+
+  // ── 매체별 집계 ──────────────────────────────────────
+  // SA 전체
+  const saT={
+    clicks: sum(sa_all,saClick),
+    rev:    sum(sa_all,saRev),
+    cart:   sum(sa_all,saCartRev),
+    cost:   sum(sa_all,saCost),
+    ord:    sum(sa_all,saOrd),
+    cvr:    0,
+  };
+  // SA 캠페인유형별
+  const saByType={
+    shopping:{clicks:sum(sa_shopping,saClick),rev:sum(sa_shopping,saRev),cost:sum(sa_shopping,saCost),cart:sum(sa_shopping,saCartRev)},
+    power:   {clicks:sum(sa_power,saClick),   rev:sum(sa_power,saRev),   cost:sum(sa_power,saCost),   cart:sum(sa_power,saCartRev)},
+    brand:   {clicks:sum(sa_brand,saClick),   rev:sum(sa_brand,saRev),   cost:sum(sa_brand,saCost),   cart:sum(sa_brand,saCartRev)},
+  };
+  // GFA 전체
+  const gT={
+    clicks: sum(gfa_all,gClick),
+    rev:    sum(gfa_all,gRev),
+    cart:   sum(gfa_all,gCartRev),
+    cost:   sum(gfa_all,gCost),
+    ord:    sum(gfa_all,gOrd),
+  };
+  // GFA 캠페인별
+  const gByType={
+    perf:{clicks:sum(gfa_perf,gClick),rev:sum(gfa_perf,gRev),cost:sum(gfa_perf,gCost),cart:sum(gfa_perf,gCartRev)},
+    adv: {clicks:sum(gfa_adv,gClick), rev:sum(gfa_adv,gRev), cost:sum(gfa_adv,gCost), cart:sum(gfa_adv,gCartRev)},
+  };
+  // META
+  const meT={
+    clicks:sum(meta,meClick),
+    rev:   sum(meta,meRev),
+    cost:  sum(meta,meCost),
+    roas:  meta.length?num(meta[meta.length-1][meRoas]):0,
+    cvr:   meta.length?num(meta[meta.length-1][meCvr]):0,
+  };
+
+  // ── 스토어 통계 집계 (채널명 매핑 기반) ──────────────
+  // 성과형디스플레이 (= gfa_perf)
+  const mkt_perf_in  =sum(mkt_perf,mkIn);
+  const mkt_perf_rm  =sum(mkt_perf,mkR14)||sum(mkt_perf,mkRl);
+  const mkt_perf_ord =sum(mkt_perf,mkOrd);
+  // ADVoost (= gfa_adv)
+  const mkt_adv_in   =sum(mkt_adv,mkIn);
+  const mkt_adv_rm   =sum(mkt_adv,mkR14)||sum(mkt_adv,mkRl);
+  // SA 검색광고 채널 합산
+  const mkt_sa_in    =sum(mkt_shopping,mkIn)+sum(mkt_power,mkIn)+sum(mkt_brand,mkIn);
+  const mkt_sa_rm    =(sum(mkt_shopping,mkR14)||sum(mkt_shopping,mkRl))+(sum(mkt_power,mkR14)||sum(mkt_power,mkRl))+(sum(mkt_brand,mkR14)||sum(mkt_brand,mkRl));
+  const mkt_sa_ord   =sum(mkt_shopping,mkOrd)+sum(mkt_power,mkOrd)+sum(mkt_brand,mkOrd);
+  // META (= 사용자정의)
+  const meIn  =sum(meRows,mkIn);
+  const meRm  =sum(meRows,mkR14)||sum(meRows,mkRl);
+  const meOrd =sum(meRows,mkOrd);
+  // 서비스공통
+  const svcR  =sum(svcCom,mkR14)||sum(svcCom,mkRl);
+  // 판매성과 전체
+  const slTot =sum(sale,slRev);
+
+  // ── 편의 변수 (대시보드 탭용) ────────────────────────
+  const gIn=mkt_perf_in, gRm=mkt_perf_rm;
+  const saIn=mkt_sa_in,  saRm=mkt_sa_rm;
+  const gOrd_mkt=mkt_perf_ord, saOrd_mkt=mkt_sa_ord;
+  const gCvr2=gIn>0?gOrd_mkt/gIn:0;
+  const saCvr2=saIn>0?saOrd_mkt/saIn:0;
+  const meCvr2=meIn>0?meOrd/meIn:0;
+  // 실질 ROAS: GFA 성과형 광고비 기준
+  const gRoasR=gByType.perf.cost>0?(mkt_perf_rm+svcR)/gByType.perf.cost:0;
+  const gRoasO=gByType.perf.cost>0?mkt_perf_rm/gByType.perf.cost:0;
+  // SA ROAS (광고비 대비 스토어통계 매출)
+  const saRoasR=saT.cost>0?mkt_sa_rm/saT.cost:0;
 
   // 기간 표시 업데이트
   const dateStr=from&&to?`${from} ~ ${to}`:'전체 기간';
@@ -341,18 +418,18 @@ function renderDashboard(){
      tn:'* 판매성과 = 재구매·직접유입 등 미추적 매출 포함 전체',
      ins:[{t:'d',tx:`<b>GFA 플랫폼(${won(gT.rev)}) vs 통계(${won(gRm)})</b> — 괴리. 서비스공통(${won(svcR)}) 합산 시 축소`},{t:'w',tx:`<b>판매성과(${won(slTot)}) - 마케팅분석 = 미추적 매출</b> — 광고 중단 시 유지되는 베이스라인`},{t:'i',tx:'<b>META → 사용자정의</b> — 광고 중단 시 사용자정의 매출 급감 여부로 기여도 검증 가능'}]},
     {lt:'매체 대시보드 — 장바구니 매출',rt:'스마트스토어 통계 — (해당 없음)',tl:'장바구니 매출',
-     lk:[{c:'#3b5998',l:'META',v:'—',s:'데이터 필요'},{c:'#185FA5',l:'GFA',v:'—',s:'데이터 필요'},{c:'#3B6D11',l:'SA',v:'—',s:'데이터 필요'},{c:'#854F0B',l:'BSA',v:'—',s:'데이터 필요'}],
-     rk:[{c:'#534AB7',l:'통계 미제공',v:'—',s:'항목 없음'},{c:'#185FA5',l:'결제수(GFA)',v:Math.round(gOrd).toLocaleString(),s:'마지막클릭'},{c:'#3B6D11',l:'결제수(SA)',v:Math.round(saOrd).toLocaleString(),s:'마지막클릭'}],
-     ll:[{c:'#185FA5',l:'장바구니 (연동 후)'}],rl:[{c:'#185FA5',l:'GFA 결제수'},{c:'#3B6D11',l:'SA 결제수'}],
-     lch:{labels:['META','GFA','SA','BSA'],data:[0,0,0,0],colors:['#3b5998','#185FA5','#3B6D11','#854F0B']},
-     rch:{labels:['GFA','SA'],data:[gOrd,saOrd],colors:['#185FA5','#3B6D11']},
+     lk:[{c:'#185FA5',l:'GFA 성과형',v:won(gByType.perf.cart),s:'장바구니 매출'},{c:'#185FA5',l:'GFA ADVoost',v:won(gByType.adv.cart),s:'장바구니 매출'},{c:'#3B6D11',l:'SA 쇼핑검색',v:won(saByType.shopping.cart),s:'장바구니 매출'},{c:'#3B6D11',l:'SA 파워링크',v:won(saByType.power.cart),s:'장바구니 매출'}],
+     rk:[{c:'#534AB7',l:'통계 미제공',v:'—',s:'항목 없음'},{c:'#185FA5',l:'결제수(성과형)',v:Math.round(mkt_perf_ord).toLocaleString(),s:'마지막클릭'},{c:'#3B6D11',l:'결제수(SA)',v:Math.round(saOrd_mkt).toLocaleString(),s:'마지막클릭'}],
+     ll:[{c:'#185FA5',l:'GFA 성과형'},{c:'#3B6D11',l:'SA 쇼핑검색'},{c:'#854F0B',l:'SA 파워링크'}],rl:[{c:'#185FA5',l:'GFA 결제수'},{c:'#3B6D11',l:'SA 결제수'}],
+     lch:{labels:['GFA성과형','GFA ADVoost','SA쇼핑','SA파워링크','SA브랜드'],data:[gByType.perf.cart/1000,gByType.adv.cart/1000,saByType.shopping.cart/1000,saByType.power.cart/1000,saByType.brand.cart/1000],colors:['#185FA5','#85B7EB','#3B6D11','#639922','#97C459']},
+     rch:{labels:['성과형','SA'],data:[mkt_perf_ord,saOrd_mkt],colors:['#185FA5','#3B6D11']},
      ln:'* 각 매체 플랫폼에서 장바구니 전환 유형 별도 추출 필요',rn:'* 통계에 장바구니 항목 없음 — 결제수로 간접 참고',
      th:['매체','장바구니 매출','통계 결제수','비고'],
      tr:[['<span class="badge bme">META</span>','연동 필요','—',''],['<span class="badge bgf">GFA</span>','연동 필요',Math.round(gOrd).toLocaleString(),'마지막클릭'],['<span class="badge bsa">SA</span>','연동 필요',Math.round(saOrd).toLocaleString(),'마지막클릭'],['<span class="badge bbs">BSA</span>','연동 필요','—','연동 예정']],
      tn:'',ins:[{t:'i',tx:'<b>장바구니 매출</b>은 각 플랫폼 전환 유형별 별도 추출 후 시트 추가 시 자동 반영'},{t:'w',tx:'<b>통계에 장바구니 항목 없음</b> — 결제수로 간접 비교만 가능'}]},
     {lt:'매체 대시보드 — ROAS',rt:'스마트스토어 통계 — 실질 ROAS',tl:'ROAS 비교',
      lk:[{c:'#3b5998',l:'META',v:meT.roas+'%',s:'플랫폼'},{c:'#185FA5',l:'GFA',v:gT.roas+'%',s:'플랫폼'},{c:'#3B6D11',l:'SA',v:saT.roas+'%',s:'플랫폼'},{c:'#854F0B',l:'BSA',v:'—',s:'연동예정'}],
-     rk:[{c:'#185FA5',l:'GFA 실질(합산)',v:pct(gRoasR),s:'성과형+공통/광고비'},{c:'#185FA5',l:'GFA(성과형만)',v:pct(gRoasO),s:'마지막클릭/광고비'},{c:'#3B6D11',l:'SA 실질',v:'연동필요',s:'광고비 추가 후'}],
+     rk:[{c:'#185FA5',l:'GFA 실질(합산)',v:pct(gRoasR),s:'성과형+공통/광고비'},{c:'#185FA5',l:'GFA(성과형만)',v:pct(gRoasO),s:'마지막클릭/광고비'},{c:'#3B6D11',l:'SA 실질',v:pct(saRoasR),s:'통계매출/광고비'}],
      ll:[{c:'#3b5998',l:'META'},{c:'#185FA5',l:'GFA'},{c:'#3B6D11',l:'SA'}],rl:[{c:'#185FA5',l:'GFA 플랫폼'},{c:'#7F77DD',l:'GFA 실질'},{c:'#9FE1CB',l:'GFA 성과형만'}],
      lch:{labels:['META','GFA','SA'],data:[meT.roas,gT.roas,saT.roas],colors:['#3b5998','#185FA5','#3B6D11']},
      rch:{labels:['GFA 플랫폼','GFA 실질','GFA 성과형만'],data:[gT.roas,gRoasR*100,gRoasO*100],colors:['#185FA5','#7F77DD','#9FE1CB']},
@@ -429,22 +506,28 @@ async function loadAll(){
     const findDateCol=cols=>dateCandidates.find(c=>cols.some(k=>k.trim()===c))||null;
 
     COLS={
-      saDateC:findDateCol(saC),gDateC:findDateCol(gC),meDateC:findDateCol(mC),
-      mkDateC:findDateCol(mkC),slDateC:findDateCol(slC),
-      saClick:fc(saC,'클릭수','Clicks','클릭'),saRev:fc(saC,'전환매출액','구매매출액','매출액','매출'),
-      saRoas:fc(saC,'ROAS','광고수익률(%)','광고수익률'),saCvr:fc(saC,'전환율','구매전환율','CVR'),
-      saCost:fc(saC,'비용','총비용','광고비','집행금액','Cost'),
-      gClick:fc(gC,'클릭수','Clicks'),gRev:fc(gC,'구매완료 전환매출액','전환매출액','매출'),
-      gRoas:fc(gC,'구매완료 광고수익률(%)','ROAS','광고수익률(%)'),gCvr:fc(gC,'클릭률(%)','전환율','CVR','CTR'),
-      gCost:fc(gC,'총비용','비용','광고비','Cost'),
-      meClick:fc(mC,'클릭수','링크 클릭','Clicks'),meRev:fc(mC,'구매 전환값','전환매출액','매출'),
-      meRoas:fc(mC,'구매 ROAS','ROAS'),meCvr:fc(mC,'전환 구매','전환율','CVR'),
+      // 날짜 컬럼
+      saDateC:'일자', gDateC:'일자', meDateC:findDateCol(mC),
+      mkDateC:findDateCol(mkC), slDateC:findDateCol(slC),
+      // SA 컬럼 (확인된 정확한 컬럼명)
+      saCampType:'캠페인유형', saCampName:'캠페인명', saAdGroup:'광고그룹명',
+      saClick:'클릭수', saRev:'구매완료 매출액', saCost:'총비용(vat+)',
+      saCartRev:'장바구니 매출액', saCartOrd:'장바구니 전환수', saOrd:'구매완료 전환수',
+      // GFA 컬럼 (확인된 정확한 컬럼명)
+      gCampName:'캠페인명', gAdGroup:'광고그룹명',
+      gClick:'클릭수', gRev:'구매완료 매출액', gCost:'총비용(vat+)',
+      gCartRev:'장바구니 매출액', gCartOrd:'장바구니 전환수', gOrd:'구매완료 전환수',
+      // META 컬럼
+      meClick:fc(mC,'클릭수','링크 클릭','Clicks'), meRev:fc(mC,'구매 전환값','전환매출액','매출'),
+      meRoas:fc(mC,'구매 ROAS','ROAS'), meCvr:fc(mC,'전환 구매','전환율','CVR'),
       meCost:fc(mC,'지출 금액','비용','총비용','광고비','Cost'),
-      mkGrp:fc(mkC,'채널그룹','채널 그룹'),mkName:fc(mkC,'채널명','채널 이름'),
-      mkDet:fc(mkC,'채널상세','채널 상세'),mkIn:fc(mkC,'유입수','방문수','세션수'),
+      // 스토어 마케팅 컬럼
+      mkGrp:fc(mkC,'채널그룹','채널 그룹'), mkName:fc(mkC,'채널명','채널 이름'),
+      mkDet:fc(mkC,'채널상세','채널 상세'), mkIn:fc(mkC,'유입수','방문수','세션수'),
       mkRl:fc(mkC,'결제금액(마지막클릭)','결제금액','구매금액','매출'),
       mkR14:fc(mkC,'결제금액(+14일기여도추정)','결제금액(14일)'),
       mkOrd:fc(mkC,'결제수(마지막클릭)','결제수','구매수'),
+      // 판매성과 컬럼
       slRev:fc(slC,'결제금액','판매금액','매출금액','매출'),
       ready:true
     };
@@ -465,7 +548,7 @@ async function loadAll(){
 }
 
 // 페이지 로드 시 기간 버튼 상태 초기화
-document.querySelector('.ppill.on')&&null;
+
 
 loadAll();
 </script>
