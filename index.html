@@ -641,7 +641,7 @@ async function loadAll(){
 
     COLS={
       // 날짜 컬럼
-      saDateC:'일별', gDateC:'일별', meDateC:findDateCol(mC),
+      saDateC:'일별', gDateC:'일별', meDateC:'일별',
       mkDateC:findDateCol(mkC), slDateC:findDateCol(slC),
       // SA 컬럼 (확인된 정확한 컬럼명)
       saCampType:'캠페인유형', saCampName:'캠페인명', saAdGroup:'광고그룹명',
@@ -652,9 +652,9 @@ async function loadAll(){
       gClick:'클릭수', gRev:'구매완료 매출액', gCost:'총비용(vat+)',
       gCartRev:'장바구니 매출액', gCartOrd:'장바구니 전환수', gOrd:'구매완료 전환수',
       // META 컬럼
-      meClick:fc(mC,'클릭수','링크 클릭','Clicks'), meRev:fc(mC,'구매 전환값','전환매출액','매출'),
-      meRoas:fc(mC,'구매 ROAS','ROAS'), meCvr:fc(mC,'전환 구매','전환율','CVR'),
-      meCost:fc(mC,'지출 금액','비용','총비용','광고비','Cost'),
+      meClick:'클릭수', meRev:'구매완료 매출액', meOrd:'구매완료 전환수',
+      meRoas:fc(mC,'구매 ROAS','ROAS','광고수익률'), meCvr:fc(mC,'전환 구매','전환율','CVR'),
+      meCost:'총비용(vat-)',
       // 스토어 마케팅 컬럼
       mkGrp:fc(mkC,'채널그룹','채널 그룹'), mkName:fc(mkC,'채널명','채널 이름'), mkCust:fc(mkC,'고객수','고객 수','customers'),
       mkDet:fc(mkC,'채널상세','채널 상세'), mkIn:fc(mkC,'유입수','방문수','세션수'),
