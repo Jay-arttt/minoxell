@@ -177,9 +177,9 @@ tr:hover td{background:var(--bg)}
       <div class="kb-sub" id="kb-mkt-sub">전체채널 결제금액</div>
       <div style="margin-top:.625rem">
         <div class="kb-row"><span class="kb-row-label">GFA(성과형)</span><span class="kb-row-val" id="kb-mkt-gfa">—</span></div>
-        <div class="kb-row"><span class="kb-row-label">SA(검색광고)</span><span class="kb-row-val" id="kb-mkt-sa">—</span></div>
+        <div class="kb-row"><span class="kb-row-label">SA(검색/쇼핑)</span><span class="kb-row-val" id="kb-mkt-sa">—</span></div>
+        <div class="kb-row"><span class="kb-row-label">BSA(브랜드검색)</span><span class="kb-row-val" id="kb-mkt-bsa">—</span></div>
         <div class="kb-row"><span class="kb-row-label">META(사용자정의)</span><span class="kb-row-val" id="kb-mkt-meta">—</span></div>
-        <div class="kb-row"><span class="kb-row-label">서비스공통</span><span class="kb-row-val" id="kb-mkt-svc">—</span></div>
       </div>
     </div>
     <div class="kb">
@@ -614,7 +614,8 @@ function renderKpiBoard(){
   const bsaRev=sum(sa_brand_kb,saRev);
   const bsaCost=sum(sa_brand_kb,saCost);
   const mkt_perf=mkt.filter(r=>nrm(r[mkName]).includes('성과형'));
-  const mkt_sa  =mkt.filter(r=>{const g=nrm(r[mkGrp]);return g==='검색광고'||g==='쇼핑';});
+  const mkt_brand_kb=mkt.filter(r=>nrm(r[mkName]).includes('브랜드검색'));
+  const mkt_sa  =mkt.filter(r=>{const g=nrm(r[mkGrp]);const n=nrm(r[mkName]);return (g==='검색광고'||g==='쇼핑')&&!n.includes('브랜드검색');});
   const mkt_meta=mkt.filter(r=>nrm(r[mkName]).includes('사용자정의'));
   const mkt_svc =mkt.filter(r=>nrm(r[mkName]).includes('네이버-서비스')&&(nrm(r[mkDet])==='공통'||nrm(r[mkDet])===''));
 
@@ -638,14 +639,19 @@ function renderKpiBoard(){
     {c1:{lbl:'매체 합계 — 클릭수', total:Math.round(gfaClicks+saClicks+meClicks).toLocaleString()+'건', sub:'전체 매체 클릭수 합계',
       rows:[{l:'GFA',v:Math.round(gfaClicks).toLocaleString()+'건'},{l:'SA(검색/쇼핑)',v:Math.round(saClicks-bsaClicks).toLocaleString()+'건'},{l:'META',v:Math.round(meClicks).toLocaleString()+'건'},{l:'BSA(브랜드검색)',v:Math.round(bsaClicks).toLocaleString()+'건'}]},
      c2:{lbl:'스토어 통계 — 유입수 합계', total:Math.round(sum(mkt,mkIn)).toLocaleString()+'명', sub:'전체채널 유입수',
-      rows:[{l:'GFA(성과형)',v:Math.round(sum(mkt_perf,mkIn)).toLocaleString()+'명'},{l:'SA(검색광고)',v:Math.round(sum(mkt_sa,mkIn)).toLocaleString()+'명'},{l:'META(사용자정의)',v:Math.round(sum(mkt_meta,mkIn)).toLocaleString()+'명'},{l:'서비스공통',v:Math.round(sum(mkt_svc,mkIn)).toLocaleString()+'명'}]},
+      rows:[{l:'GFA(성과형)',v:Math.round(sum(mkt_perf,mkIn)).toLocaleString()+'명'},{l:'SA(검색/쇼핑)',v:Math.round(sum(mkt_sa,mkIn)).toLocaleString()+'명'},{l:'BSA(브랜드검색)',v:Math.round(sum(mkt_brand_kb,mkIn)).toLocaleString()+'명'},{l:'META(사용자정의)',v:Math.round(sum(mkt_meta,mkIn)).toLocaleString()+'명'}]},
      c3:{lbl:'스토어 통계 — 고객수 합계', total:Math.round(sum(mkt,mkCust)).toLocaleString()+'명', sub:'전체채널 고객수',
       rows:[{l:'GFA(성과형)',v:Math.round(sum(mkt_perf,mkCust)).toLocaleString()+'명'},{l:'SA(검색광고)',v:Math.round(sum(mkt_sa,mkCust)).toLocaleString()+'명'},{l:'META(사용자정의)',v:Math.round(sum(mkt_meta,mkCust)).toLocaleString()+'명'},{l:'서비스공통',v:Math.round(sum(mkt_svc,mkCust)).toLocaleString()+'명'}]}},
     // 1: 매출
     {c1:{lbl:'매체 합계 — 전환매출', total:won(gfaRevT+saRevT+meRevT), sub:'각 매체 플랫폼 전환매출 합계',
       rows:[{l:'GFA',v:won(gfaRevT)},{l:'SA',v:won(saRevT-bsaRev)},{l:'META',v:won(meRevT)},{l:'BSA(브랜드검색)',v:won(bsaRev)}]},
      c2:{lbl:'스토어 통계 — 결제금액 합계', total:won(mktTotal), sub:`전체채널 결제금액 (${attrLabel})`,
-      rows:[{l:'GFA(성과형)',v:won(mktGfa)},{l:'SA(검색광고)',v:won(mktSa)},{l:'META(사용자정의)',v:won(mktMeta)},{l:'서비스공통',v:won(mktSvc)}]},
+      rows:[
+        {l:'GFA(성과형)',v:won(mktGfa)},
+        {l:'SA(검색/쇼핑)',v:won(mktSa)},
+        {l:'BSA(브랜드검색)',v:won(useR14?(sum(mkt_brand_kb,mkR14)||sum(mkt_brand_kb,mkRl)):sum(mkt_brand_kb,mkRl))},
+        {l:'META(사용자정의)',v:won(mktMeta)},
+      ]},
      c3:{lbl:'스토어 통계 — 판매성과 합계', total:won(saleTotal), sub:'전체 결제금액 (미추적 포함)',
       rows:[{l:'마케팅분석 합계',v:won(mktTotal)},{l:'미추적 매출 추정',v:won(unmkt)},{l:'미추적 비중',v:pct(saleTotal>0?unmkt/saleTotal:0)},{l:'',v:''}]}},
     // 2: 장바구니 매출
@@ -686,7 +692,8 @@ function renderKpiBoard(){
   document.querySelector('#kpi-board .kb:nth-child(2) .kb-label').textContent=d.c2.lbl;
   $('kb-mkt-total').textContent=d.c2.total;
   $('kb-mkt-sub').textContent=d.c2.sub;
-  [$('kb-mkt-gfa'),$('kb-mkt-sa'),$('kb-mkt-meta'),$('kb-mkt-svc')].forEach((el,i)=>{if(el)el.textContent=d.c2.rows[i].v;});
+  [$('kb-mkt-gfa'),$('kb-mkt-sa'),$('kb-mkt-bsa'),$('kb-mkt-meta')].forEach((el,i)=>{if(el)el.textContent=d.c2.rows[i]?d.c2.rows[i].v:'—';});
+  if($('kb-mkt-svc')&&d.c2.rows[4])$('kb-mkt-svc').textContent=d.c2.rows[4].v;
   document.querySelectorAll('#kpi-board .kb:nth-child(2) .kb-row .kb-row-label').forEach((el,i)=>{if(d.c2.rows[i])el.textContent=d.c2.rows[i].l;});
 
   // 카드3
