@@ -265,6 +265,30 @@ tr:hover td{background:var(--bg)}
     <div class="tw"><table id="dt"></table></div>
     <p class="tnote" id="tn"></p>
   </div>
+
+  <!-- 상세 데이터 테이블 -->
+  <div class="tp" style="margin-bottom:1.5rem">
+    <div class="th2" style="flex-wrap:wrap;gap:8px;margin-bottom:.75rem">
+      <div class="tt">상세 데이터 테이블</div>
+      <div style="display:flex;align-items:center;gap:6px;margin-left:auto;flex-wrap:wrap">
+        <span style="font-size:11px;color:var(--t2)">매체 컬럼:</span>
+        <div id="media-col-checks" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+        <div style="width:1px;height:16px;background:var(--border-m);margin:0 4px"></div>
+        <span style="font-size:11px;color:var(--t2)">스토어 컬럼:</span>
+        <div id="store-col-checks" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">매체 대시보드</div>
+        <div class="tw"><table id="media-detail-table" style="font-size:11px"></table></div>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">스토어 통계</div>
+        <div class="tw"><table id="store-detail-table" style="font-size:11px"></table></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -605,6 +629,7 @@ function renderDashboard(){
   renderKpiBoard();
   renderCompChart();
   renderRightDonut();
+  renderDetailTables();
   renderChChart();
 }
 
@@ -656,6 +681,7 @@ function setAttr(attr){
   renderKpiBoard();
   renderCompChart();
   renderRightDonut();
+  renderDetailTables();
 }
 
 function renderKpiBoard(){
@@ -1119,6 +1145,200 @@ function renderRightDonut(){
   }
 }
 
+// ── 상세 데이터 테이블 ─────────────────────────────────
+const MEDIA_COLS = [
+  {key:'cost',    label:'비용',         on:true},
+  {key:'rev',     label:'구매완료매출', on:true},
+  {key:'roas',    label:'ROAS',         on:true},
+  {key:'cvr',     label:'CVR',          on:true},
+  {key:'ord',     label:'구매완료수',   on:true},
+  {key:'cartRev', label:'장바구니매출', on:true},
+  {key:'cartOrd', label:'장바구니수',   on:false},
+  {key:'clicks',  label:'클릭수',       on:true},
+  {key:'cpc',     label:'CPC',          on:false},
+  {key:'cpm',     label:'CPM',          on:false},
+];
+
+const STORE_COLS = [
+  {key:'cost',    label:'비용',              on:false},
+  {key:'revLc',   label:'결제금액(LC)',      on:true},
+  {key:'rev14',   label:'결제금액(+14일)',   on:true},
+  {key:'roasLc',  label:'ROAS(LC)',          on:true},
+  {key:'roas14',  label:'ROAS(+14일)',       on:true},
+  {key:'ordLc',   label:'결제수(LC)',        on:true},
+  {key:'ord14',   label:'결제수(+14일)',     on:false},
+  {key:'cvrLc',   label:'결제율(LC)',        on:true},
+  {key:'cvr14',   label:'결제율(+14일)',     on:false},
+  {key:'inflow',  label:'유입수',            on:true},
+];
+
+// 매체 행 정의
+const MEDIA_ROWS = [
+  {label:'GFA(성과형)',    color:'#185FA5', type:'gfa_perf'},
+  {label:'GFA(ADVoost)',   color:'#0C447C', type:'gfa_adv'},
+  {label:'SA(쇼핑검색)',   color:'#3B6D11', type:'sa_shop'},
+  {label:'SA(파워링크)',   color:'#27500A', type:'sa_power'},
+  {label:'BSA(브랜드검색)',color:'#854F0B', type:'sa_brand'},
+  {label:'META',           color:'#3b5998', type:'meta'},
+  {label:'전체 합계',      color:'#888780', type:'total'},
+];
+
+// 스토어 채널 행 (동적 - 전체 채널명)
+function initDetailTableControls(){
+  const mc=document.getElementById('media-col-checks');
+  const sc=document.getElementById('store-col-checks');
+  if(!mc||!sc)return;
+
+  const makePill=(col,arr,renderFn)=>{
+    const btn=document.createElement('button');
+    btn.className='ppill'+(col.on?' on':'');
+    btn.style.fontSize='10px';
+    btn.style.padding='2px 8px';
+    btn.textContent=col.label;
+    btn.onclick=()=>{
+      col.on=!col.on;
+      btn.classList.toggle('on',col.on);
+      renderFn();
+    };
+    return btn;
+  };
+
+  mc.innerHTML=''; sc.innerHTML='';
+  MEDIA_COLS.forEach(c=>mc.appendChild(makePill(c,MEDIA_COLS,renderDetailTables)));
+  STORE_COLS.forEach(c=>sc.appendChild(makePill(c,STORE_COLS,renderDetailTables)));
+}
+
+function renderDetailTables(){
+  if(!COLS.ready)return;
+  const {saDateC,gDateC,meDateC,mkDateC,
+    saClick,saRev,saCost,saCartRev,saCartOrd,saOrd,
+    gClick,gRev,gCost,gCartRev,gCartOrd,gOrd,
+    meClick,meRev,meCost,
+    mkName,mkIn,mkRl,mkR14,mkOrd,mkCust,mkDet,mkGrp,
+    saCampType,gCampName,gAdGroup}=COLS;
+  const from=curFrom,to=curTo;
+  const nrm=s=>(s||'').toString().trim();
+
+  const saAll  =filterByDate(RAW.sa,   saDateC,from,to);
+  const gfaAll =filterByDate(RAW.gfa,  gDateC, from,to);
+  const metaAll=filterByDate(RAW.meta, meDateC,from,to);
+  const mkt    =filterByDate(RAW.mkt,  mkDateC,from,to);
+
+  // 매체 세그먼트
+  const segs={
+    gfa_perf : gfaAll.filter(r=>!nrm(r[gCampName]).includes('ADVoost')&&!nrm(r[gAdGroup]).includes('올리브영')),
+    gfa_adv  : gfaAll.filter(r=>nrm(r[gCampName]).includes('ADVoost')),
+    sa_shop  : saAll.filter(r=>nrm(r[saCampType])==='쇼핑검색광고'),
+    sa_power : saAll.filter(r=>nrm(r[saCampType])==='파워링크'),
+    sa_brand : saAll.filter(r=>nrm(r[saCampType]).includes('브랜드검색')),
+    meta     : metaAll,
+    total    : [...gfaAll,...saAll,...metaAll],
+  };
+
+  function mediaRowData(rows){
+    const clicks=sum(rows,saClick)||sum(rows,gClick)||sum(rows,meClick);
+    const cost  =sum(rows,saCost)||sum(rows,gCost)||sum(rows,meCost);
+    const rev   =sum(rows,saRev)||sum(rows,gRev)||sum(rows,meRev);
+    const ord   =sum(rows,saOrd)||sum(rows,gOrd);
+    const cartRev=sum(rows,saCartRev)||sum(rows,gCartRev);
+    const cartOrd=sum(rows,saCartOrd)||sum(rows,gCartOrd);
+    const noExp =sum(rows,'노출수');
+    return {
+      cost, rev, clicks, ord, cartRev, cartOrd,
+      roas: cost>0?pct(rev/cost):'—',
+      cvr:  clicks>0?pct(ord/clicks):'—',
+      cpc:  clicks>0?won(cost/clicks):'—',
+      cpm:  noExp>0?won(cost/noExp*1000):'—',
+    };
+  }
+
+  // 매체 테이블
+  const activeMCols=MEDIA_COLS.filter(c=>c.on);
+  const mTable=document.getElementById('media-detail-table');
+  if(mTable){
+    const thead='<thead><tr><th style="text-align:left">매체</th>'+
+      activeMCols.map(c=>`<th>${c.label}</th>`).join('')+'</tr></thead>';
+    const tbody='<tbody>'+MEDIA_ROWS.map(row=>{
+      const d=mediaRowData(segs[row.type]||[]);
+      const fmtMap={
+        cost:won(d.cost),rev:won(d.rev),roas:d.roas,cvr:d.cvr,
+        ord:Math.round(d.ord).toLocaleString(),
+        cartRev:won(d.cartRev),cartOrd:Math.round(d.cartOrd).toLocaleString(),
+        clicks:Math.round(d.clicks).toLocaleString(),cpc:d.cpc,cpm:d.cpm
+      };
+      return '<tr>'+
+        `<td style="text-align:left"><span class="dot" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${row.color};margin-right:4px"></span>${row.label}</td>`+
+        activeMCols.map(c=>`<td style="text-align:right">${fmtMap[c.key]||'—'}</td>`).join('')+
+        '</tr>';
+    }).join('')+'</tbody>';
+    mTable.innerHTML=thead+tbody;
+  }
+
+  // 스토어 채널 목록 (전체 채널명)
+  const chSet={};
+  mkt.forEach(r=>{
+    const ch=nrm(r[mkName]);
+    if(!ch)return;
+    if(!chSet[ch])chSet[ch]=[];
+    chSet[ch].push(r);
+  });
+  // 결제금액 기준 내림차순
+  const mkR14col=Object.keys(RAW.mkt[0]||{}).find(k=>k.includes('결제금액')&&k.includes('14'))||mkR14;
+  const chSorted=Object.entries(chSet).sort((a,b)=>{
+    const av=sum(b[1],mkR14col)||sum(b[1],mkRl);
+    const bv=sum(a[1],mkR14col)||sum(a[1],mkRl);
+    return av-bv;
+  });
+
+  // 매체 비용 매핑 (스토어 채널명 → 매체 비용)
+  const costMap={
+    '네이버 성과형디스플레이광고': sum(segs.gfa_perf,gCost),
+    '네이버 ADVoost쇼핑':          sum(segs.gfa_adv, gCost),
+    '네이버 쇼핑검색광고':         sum(segs.sa_shop, saCost),
+    '네이버 사이트검색광고':        sum(segs.sa_power,saCost),
+    '브랜드검색': sum(segs.sa_brand,saCost),
+  };
+  // META 계열
+  ['사용자정의'].forEach(k=>{costMap[k]=sum(segs.meta,meCost);});
+
+  const activeSCols=STORE_COLS.filter(c=>c.on);
+  const sTable=document.getElementById('store-detail-table');
+  if(sTable){
+    const thead='<thead><tr><th style="text-align:left">채널명</th>'+
+      activeSCols.map(c=>`<th>${c.label}</th>`).join('')+'</tr></thead>';
+
+    const tbody='<tbody>'+chSorted.map(([ch,rows])=>{
+      const revLc=sum(rows,mkRl);
+      const rev14=sum(rows,mkR14col)||sum(rows,mkRl);
+      const ordLc=sum(rows,mkOrd);
+      const ord14col=Object.keys(RAW.mkt[0]||{}).find(k=>k.includes('결제수')&&k.includes('14'));
+      const ord14=ord14col?sum(rows,ord14col):ordLc;
+      const inflow=sum(rows,mkIn);
+      // 비용 - 대응 매체 있으면 표시
+      const chCost=Object.entries(costMap).find(([k])=>ch.includes(k)||k.includes(ch))?.[1]||null;
+      const roasLc=chCost&&chCost>0?pct(revLc/chCost):'—';
+      const roas14=chCost&&chCost>0?pct(rev14/chCost):'—';
+      const cvrLc=inflow>0?pct(ordLc/inflow):'—';
+      const cvr14=inflow>0?pct(ord14/inflow):'—';
+
+      const fmtMap={
+        cost:chCost?won(chCost):'—',
+        revLc:won(revLc),rev14:won(rev14),
+        roasLc,roas14,
+        ordLc:Math.round(ordLc).toLocaleString(),
+        ord14:Math.round(ord14).toLocaleString(),
+        cvrLc,cvr14,
+        inflow:Math.round(inflow).toLocaleString(),
+      };
+      return '<tr>'+
+        `<td style="text-align:left;white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis" title="${ch}">${ch}</td>`+
+        activeSCols.map(c=>`<td style="text-align:right">${fmtMap[c.key]||'—'}</td>`).join('')+
+        '</tr>';
+    }).join('')+'</tbody>';
+    sTable.innerHTML=thead+tbody;
+  }
+}
+
 function renderChChart(){
   if(!COLS.ready||!RAW.mkt.length)return;
   const {mkName,mkCust,mkIn,mkRl,mkR14,mkOrd,mkDateC}=COLS;
@@ -1261,6 +1481,7 @@ async function loadAll(){
     console.log('날짜 컬럼 탐지:', {sa:COLS.saDateC,gfa:COLS.gDateC,meta:COLS.meDateC,mkt:COLS.mkDateC,sale:COLS.slDateC});
 
     st.className='sp ok';stx.textContent='데이터 로드 완료';
+    initDetailTableControls();
 
     // 기본 기간 30일로 설정
     setPeriod('30d');
