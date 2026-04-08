@@ -260,35 +260,83 @@ tr:hover td{background:var(--bg)}
     <div class="leg" id="ch-leg" style="margin-top:.75rem"></div>
     <p class="pn" id="ch-note">* 스마트스토어 마케팅분석 기준 / 결제금액 단위: 원</p>
   </div>
-  <div class="tp">
-    <div class="th2"><div class="tt">매체별 상세 비교</div><span class="vb" id="tl">클릭수 vs 유입수</span></div>
-    <div class="tw"><table id="dt"></table></div>
-    <p class="tnote" id="tn"></p>
-  </div>
-
   <!-- 상세 데이터 테이블 -->
   <div class="tp" style="margin-bottom:1.5rem">
-    <div class="th2" style="flex-wrap:wrap;gap:8px;margin-bottom:.75rem">
-      <div class="tt">상세 데이터 테이블</div>
-      <div style="display:flex;align-items:center;gap:6px;margin-left:auto;flex-wrap:wrap">
-        <span style="font-size:11px;color:var(--t2)">매체 컬럼:</span>
-        <div id="media-col-checks" style="display:flex;gap:6px;flex-wrap:wrap"></div>
-        <div style="width:1px;height:16px;background:var(--border-m);margin:0 4px"></div>
-        <span style="font-size:11px;color:var(--t2)">스토어 컬럼:</span>
-        <div id="store-col-checks" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:1rem">
+      <div class="tt">매체 vs 스토어 통계 — 상세 비교</div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <!-- 빠른 선택 버튼 -->
+        <div style="display:flex;gap:5px">
+          <button class="ppill on" id="qbtn-buy" style="font-size:11px" onclick="quickSelect('buy')">구매 관련</button>
+          <button class="ppill" id="qbtn-click" style="font-size:11px" onclick="quickSelect('click')">클릭·유입 관련</button>
+          <button class="ppill" id="qbtn-all" style="font-size:11px" onclick="quickSelect('all')">전체</button>
+        </div>
+        <div style="width:1px;height:18px;background:var(--border-m)"></div>
+        <!-- 매체 컬럼 드롭박스 -->
+        <div style="display:flex;align-items:center;gap:5px">
+          <span style="font-size:11px;color:var(--t2);white-space:nowrap">매체</span>
+          <div id="media-col-checks" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+        </div>
+        <div style="width:1px;height:18px;background:var(--border-m)"></div>
+        <!-- 스토어 컬럼 드롭박스 -->
+        <div style="display:flex;align-items:center;gap:5px">
+          <span style="font-size:11px;color:var(--t2);white-space:nowrap">스토어</span>
+          <div id="store-col-checks" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+        </div>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <div>
-        <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">매체 대시보드</div>
-        <div class="tw"><table id="media-detail-table" style="font-size:11px"></table></div>
-      </div>
-      <div>
-        <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">스토어 통계</div>
-        <div class="tw"><table id="store-detail-table" style="font-size:11px"></table></div>
-      </div>
-    </div>
+    <div class="tw"><table id="detail-combined-table" style="font-size:11px"></table></div>
   </div>
+</div>
+
+  <!-- 스토어 통계 채널 계층 드릴다운 테이블 -->
+  <div class="tp" style="margin-bottom:2rem" id="drill-panel">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:.875rem">
+      <div>
+        <div class="tt">스토어 통계 — 채널 계층별 상세</div>
+        <div style="font-size:10px;color:var(--t2);margin-top:3px">채널속성 → 채널그룹 → 채널명 → 채널상세 순으로 클릭해서 펼쳐보기</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:11px;color:var(--t2)">기준:</span>
+        <button class="attr-btn on" data-drillattr="14" onclick="setDrillAttr('14')">+14일</button>
+        <button class="attr-btn" data-drillattr="lc" onclick="setDrillAttr('lc')">마지막클릭</button>
+      </div>
+    </div>
+    <div class="tw"><table id="drill-table" style="font-size:11px"></table></div>
+    <p class="pn" id="drill-note"></p>
+  </div>
+
+
+  <!-- 요일별 지표 그래프 -->
+  <div class="panel" style="margin-bottom:2rem">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:1rem">
+      <div>
+        <div class="tt">요일별 지표</div>
+        <div style="font-size:10px;color:var(--t2);margin-top:3px" id="dow-range-label"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <select id="dow-metric" onchange="renderDowChart()" style="font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid var(--border-m);background:var(--surface);color:var(--text);font-family:inherit;cursor:pointer">
+          <option value="revLc">결제금액 (마지막클릭)</option>
+          <option value="rev14">결제금액 (+14일)</option>
+          <option value="ordLc">결제수 (마지막클릭)</option>
+          <option value="ord14">결제수 (+14일)</option>
+          <option value="inflow">유입수</option>
+          <option value="cvrLc">결제율 (마지막클릭)</option>
+          <option value="cvr14">결제율 (+14일)</option>
+          <option value="mediaRev">매체 구매완료 매출</option>
+          <option value="mediaClicks">매체 클릭수</option>
+          <option value="mediaCost">매체 광고비</option>
+        </select>
+        <button class="ppill" id="dow-compare-btn" onclick="toggleDowCompare()" style="font-size:11px">이전 동기간 비교 OFF</button>
+      </div>
+    </div>
+    <div style="position:relative;width:100%;height:260px">
+      <canvas id="dowChart"></canvas>
+    </div>
+    <div class="leg" id="dow-leg" style="margin-top:.75rem"></div>
+    <p class="pn" id="dow-note"></p>
+  </div>
+
 </div>
 
 <script>
@@ -630,6 +678,7 @@ function renderDashboard(){
   renderCompChart();
   renderRightDonut();
   renderDetailTables();
+  renderDrillTable();
   renderChChart();
 }
 
@@ -682,6 +731,7 @@ function setAttr(attr){
   renderCompChart();
   renderRightDonut();
   renderDetailTables();
+  renderDrillTable();
 }
 
 function renderKpiBoard(){
@@ -1158,54 +1208,137 @@ const MEDIA_COLS = [
   {key:'cpc',     label:'CPC',          on:false},
   {key:'cpm',     label:'CPM',          on:false},
 ];
-
 const STORE_COLS = [
-  {key:'cost',    label:'비용',              on:false},
-  {key:'revLc',   label:'결제금액(LC)',      on:true},
-  {key:'rev14',   label:'결제금액(+14일)',   on:true},
-  {key:'roasLc',  label:'ROAS(LC)',          on:true},
-  {key:'roas14',  label:'ROAS(+14일)',       on:true},
-  {key:'ordLc',   label:'결제수(LC)',        on:true},
-  {key:'ord14',   label:'결제수(+14일)',     on:false},
-  {key:'cvrLc',   label:'결제율(LC)',        on:true},
-  {key:'cvr14',   label:'결제율(+14일)',     on:false},
-  {key:'inflow',  label:'유입수',            on:true},
+  {key:'revLc',  label:'결제금액(LC)',   on:true},
+  {key:'rev14',  label:'결제금액(+14)',  on:true},
+  {key:'roasLc', label:'ROAS(LC)',       on:true},
+  {key:'roas14', label:'ROAS(+14)',      on:true},
+  {key:'ordLc',  label:'결제수(LC)',     on:true},
+  {key:'ord14',  label:'결제수(+14)',    on:false},
+  {key:'cvrLc',  label:'결제율(LC)',     on:true},
+  {key:'cvr14',  label:'결제율(+14)',    on:false},
+  {key:'inflow', label:'유입수',         on:true},
 ];
 
-// 매체 행 정의
-const MEDIA_ROWS = [
-  {label:'GFA(성과형)',    color:'#185FA5', type:'gfa_perf'},
-  {label:'GFA(ADVoost)',   color:'#0C447C', type:'gfa_adv'},
-  {label:'SA(쇼핑검색)',   color:'#3B6D11', type:'sa_shop'},
-  {label:'SA(파워링크)',   color:'#27500A', type:'sa_power'},
-  {label:'BSA(브랜드검색)',color:'#854F0B', type:'sa_brand'},
-  {label:'META',           color:'#3b5998', type:'meta'},
-  {label:'전체 합계',      color:'#888780', type:'total'},
+// 매체-스토어 대응 행 정의
+const MATCH_ROWS = [
+  {mediaLabel:'GFA(성과형)',    storeLabel:'네이버 성과형디스플레이광고', mediaColor:'#185FA5', mediaType:'gfa_perf'},
+  {mediaLabel:'GFA(ADVoost)',   storeLabel:'네이버 ADVoost쇼핑',          mediaColor:'#0C447C', mediaType:'gfa_adv'},
+  {mediaLabel:'SA(쇼핑검색)',   storeLabel:'네이버 쇼핑검색광고',         mediaColor:'#3B6D11', mediaType:'sa_shop'},
+  {mediaLabel:'SA(파워링크)',   storeLabel:'네이버 사이트검색광고',        mediaColor:'#27500A', mediaType:'sa_power'},
+  {mediaLabel:'BSA(브랜드검색)',storeLabel:'네이버 브랜드검색(일반형)',    mediaColor:'#854F0B', mediaType:'sa_brand'},
+  {mediaLabel:'META',           storeLabel:'사용자정의',                   mediaColor:'#3b5998', mediaType:'meta'},
 ];
 
-// 스토어 채널 행 (동적 - 전체 채널명)
+// 빠른 선택 그룹 정의
+const QUICK_GROUPS = {
+  buy: {
+    media: ['rev','roas','cvr','ord','cartRev','cartOrd'],
+    store: ['revLc','rev14','roasLc','roas14','ordLc','ord14','cvrLc','cvr14'],
+  },
+  click: {
+    media: ['clicks','cpc','cpm'],
+    store: ['inflow','cvrLc','cvr14'],
+  },
+  all: {
+    media: ['cost','rev','roas','cvr','ord','cartRev','cartOrd','clicks','cpc','cpm'],
+    store: null,
+  },
+};
+
+function quickSelect(group){
+  // 버튼 on 상태
+  ['buy','click','all'].forEach(g=>{
+    const btn=document.getElementById('qbtn-'+g);
+    if(btn)btn.classList.toggle('on',g===group);
+  });
+  const g=QUICK_GROUPS[group];
+  if(!g)return;
+  MEDIA_COLS.forEach(c=>c.on=g.media.includes(c.key));
+  STORE_COLS.forEach(c=>c.on=g.store===null||g.store.includes(c.key));
+  // 드롭박스 체크박스 동기화
+  syncDropboxes();
+  renderDetailTables();
+}
+
+function syncDropboxes(){
+  document.querySelectorAll('.detail-col-cb').forEach(cb=>{
+    const col=[...MEDIA_COLS,...STORE_COLS].find(c=>c.key===cb.dataset.key&&c.group===cb.dataset.group);
+    if(col)cb.checked=col.on;
+  });
+}
+
 function initDetailTableControls(){
   const mc=document.getElementById('media-col-checks');
   const sc=document.getElementById('store-col-checks');
   if(!mc||!sc)return;
 
-  const makePill=(col,arr,renderFn)=>{
+  // 드롭박스 생성 함수
+  function makeDropbox(cols, groupName, container){
+    const wrap=document.createElement('div');
+    wrap.style.cssText='position:relative;display:inline-block';
+
     const btn=document.createElement('button');
-    btn.className='ppill'+(col.on?' on':'');
-    btn.style.fontSize='10px';
-    btn.style.padding='2px 8px';
-    btn.textContent=col.label;
-    btn.onclick=()=>{
-      col.on=!col.on;
-      btn.classList.toggle('on',col.on);
-      renderFn();
+    btn.className='rbtn';
+    btn.style.cssText='font-size:11px;display:flex;align-items:center;gap:4px';
+    btn.innerHTML=`컬럼 선택 <span style="font-size:9px">▼</span>`;
+
+    const dropdown=document.createElement('div');
+    dropdown.style.cssText='display:none;position:absolute;top:100%;left:0;z-index:200;background:var(--surface);border:1px solid var(--border-m);border-radius:8px;padding:8px;min-width:160px;box-shadow:0 4px 12px rgba(0,0,0,0.1)';
+
+    cols.forEach(col=>{
+      const row=document.createElement('label');
+      row.style.cssText='display:flex;align-items:center;gap:6px;padding:3px 4px;cursor:pointer;border-radius:4px;font-size:11px;color:var(--text)';
+      row.onmouseover=()=>row.style.background='var(--bg)';
+      row.onmouseout=()=>row.style.background='';
+      const cb=document.createElement('input');
+      cb.type='checkbox';
+      cb.checked=col.on;
+      cb.dataset.key=col.key;
+      cb.dataset.group=groupName;
+      cb.className='detail-col-cb';
+      cb.onchange=()=>{
+        col.on=cb.checked;
+        // 빠른 선택 버튼 상태 초기화
+        ['buy','click','all'].forEach(g=>{
+          const b=document.getElementById('qbtn-'+g);
+          if(b)b.classList.remove('on');
+        });
+        renderDetailTables();
+      };
+      const lbl=document.createElement('span');
+      lbl.textContent=col.label;
+      row.appendChild(cb);
+      row.appendChild(lbl);
+      dropdown.appendChild(row);
+    });
+
+    btn.onclick=(e)=>{
+      e.stopPropagation();
+      const isOpen=dropdown.style.display==='block';
+      document.querySelectorAll('.detail-dropdown').forEach(d=>d.style.display='none');
+      dropdown.style.display=isOpen?'none':'block';
     };
-    return btn;
-  };
+    dropdown.className='detail-dropdown';
+    wrap.appendChild(btn);
+    wrap.appendChild(dropdown);
+    container.appendChild(wrap);
+  }
 
   mc.innerHTML=''; sc.innerHTML='';
-  MEDIA_COLS.forEach(c=>mc.appendChild(makePill(c,MEDIA_COLS,renderDetailTables)));
-  STORE_COLS.forEach(c=>sc.appendChild(makePill(c,STORE_COLS,renderDetailTables)));
+  makeDropbox(MEDIA_COLS,'media',mc);
+  makeDropbox(STORE_COLS,'store',sc);
+
+  // 외부 클릭 시 드롭박스 닫기
+  if(!window._detailDropboxListener){
+    document.addEventListener('click',()=>{
+      document.querySelectorAll('.detail-dropdown').forEach(d=>d.style.display='none');
+    });
+    window._detailDropboxListener=true;
+  }
+
+  // 기본: 구매 관련으로 초기화
+  quickSelect('buy');
 }
 
 function renderDetailTables(){
@@ -1214,7 +1347,7 @@ function renderDetailTables(){
     saClick,saRev,saCost,saCartRev,saCartOrd,saOrd,
     gClick,gRev,gCost,gCartRev,gCartOrd,gOrd,
     meClick,meRev,meCost,
-    mkName,mkIn,mkRl,mkR14,mkOrd,mkCust,mkDet,mkGrp,
+    mkName,mkIn,mkRl,mkR14,mkOrd,
     saCampType,gCampName,gAdGroup}=COLS;
   const from=curFrom,to=curTo;
   const nrm=s=>(s||'').toString().trim();
@@ -1222,121 +1355,282 @@ function renderDetailTables(){
   const saAll  =filterByDate(RAW.sa,   saDateC,from,to);
   const gfaAll =filterByDate(RAW.gfa,  gDateC, from,to);
   const metaAll=filterByDate(RAW.meta, meDateC,from,to);
-  const mkt    =filterByDate(RAW.mkt,  mkDateC,from,to);
+  const mkt    =filterByDate(RAW.mkt,  COLS.mkDateC,from,to);
 
   // 매체 세그먼트
   const segs={
-    gfa_perf : gfaAll.filter(r=>!nrm(r[gCampName]).includes('ADVoost')&&!nrm(r[gAdGroup]).includes('올리브영')),
-    gfa_adv  : gfaAll.filter(r=>nrm(r[gCampName]).includes('ADVoost')),
-    sa_shop  : saAll.filter(r=>nrm(r[saCampType])==='쇼핑검색광고'),
-    sa_power : saAll.filter(r=>nrm(r[saCampType])==='파워링크'),
-    sa_brand : saAll.filter(r=>nrm(r[saCampType]).includes('브랜드검색')),
-    meta     : metaAll,
-    total    : [...gfaAll,...saAll,...metaAll],
+    gfa_perf:gfaAll.filter(r=>!nrm(r[gCampName]).includes('ADVoost')&&!nrm(r[gAdGroup]).includes('올리브영')),
+    gfa_adv :gfaAll.filter(r=>nrm(r[gCampName]).includes('ADVoost')),
+    sa_shop :saAll.filter(r=>nrm(r[saCampType])==='쇼핑검색광고'),
+    sa_power:saAll.filter(r=>nrm(r[saCampType])==='파워링크'),
+    sa_brand:saAll.filter(r=>nrm(r[saCampType]).includes('브랜드검색')),
+    meta    :metaAll,
+    total   :[...gfaAll,...saAll,...metaAll],
   };
 
-  function mediaRowData(rows){
+  function getMediaData(rows){
     const clicks=sum(rows,saClick)||sum(rows,gClick)||sum(rows,meClick);
-    const cost  =sum(rows,saCost)||sum(rows,gCost)||sum(rows,meCost);
-    const rev   =sum(rows,saRev)||sum(rows,gRev)||sum(rows,meRev);
-    const ord   =sum(rows,saOrd)||sum(rows,gOrd);
+    const cost  =sum(rows,saCost) ||sum(rows,gCost) ||sum(rows,meCost);
+    const rev   =sum(rows,saRev)  ||sum(rows,gRev)  ||sum(rows,meRev);
+    const ord   =sum(rows,saOrd)  ||sum(rows,gOrd);
     const cartRev=sum(rows,saCartRev)||sum(rows,gCartRev);
     const cartOrd=sum(rows,saCartOrd)||sum(rows,gCartOrd);
-    const noExp =sum(rows,'노출수');
-    return {
-      cost, rev, clicks, ord, cartRev, cartOrd,
-      roas: cost>0?pct(rev/cost):'—',
-      cvr:  clicks>0?pct(ord/clicks):'—',
-      cpc:  clicks>0?won(cost/clicks):'—',
-      cpm:  noExp>0?won(cost/noExp*1000):'—',
+    const imp   =sum(rows,'노출수');
+    return{
+      cost,rev,clicks,ord,cartRev,cartOrd,
+      roas :cost>0?pct(rev/cost):'—',
+      cvr  :clicks>0?pct(ord/clicks):'—',
+      cpc  :clicks>0?won(cost/clicks):'—',
+      cpm  :imp>0?won(cost/imp*1000):'—',
     };
   }
 
-  // 매체 테이블
-  const activeMCols=MEDIA_COLS.filter(c=>c.on);
-  const mTable=document.getElementById('media-detail-table');
-  if(mTable){
-    const thead='<thead><tr><th style="text-align:left">매체</th>'+
-      activeMCols.map(c=>`<th>${c.label}</th>`).join('')+'</tr></thead>';
-    const tbody='<tbody>'+MEDIA_ROWS.map(row=>{
-      const d=mediaRowData(segs[row.type]||[]);
-      const fmtMap={
-        cost:won(d.cost),rev:won(d.rev),roas:d.roas,cvr:d.cvr,
-        ord:Math.round(d.ord).toLocaleString(),
-        cartRev:won(d.cartRev),cartOrd:Math.round(d.cartOrd).toLocaleString(),
-        clicks:Math.round(d.clicks).toLocaleString(),cpc:d.cpc,cpm:d.cpm
-      };
-      return '<tr>'+
-        `<td style="text-align:left"><span class="dot" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${row.color};margin-right:4px"></span>${row.label}</td>`+
-        activeMCols.map(c=>`<td style="text-align:right">${fmtMap[c.key]||'—'}</td>`).join('')+
-        '</tr>';
-    }).join('')+'</tbody>';
-    mTable.innerHTML=thead+tbody;
-  }
-
-  // 스토어 채널 목록 (전체 채널명)
-  const chSet={};
+  // 스토어 채널 집계
+  const mktByName={};
   mkt.forEach(r=>{
-    const ch=nrm(r[mkName]);
-    if(!ch)return;
-    if(!chSet[ch])chSet[ch]=[];
-    chSet[ch].push(r);
+    const ch=nrm(r[mkName]); if(!ch)return;
+    if(!mktByName[ch])mktByName[ch]=[];
+    mktByName[ch].push(r);
   });
-  // 결제금액 기준 내림차순
+
   const mkR14col=Object.keys(RAW.mkt[0]||{}).find(k=>k.includes('결제금액')&&k.includes('14'))||mkR14;
-  const chSorted=Object.entries(chSet).sort((a,b)=>{
-    const av=sum(b[1],mkR14col)||sum(b[1],mkRl);
-    const bv=sum(a[1],mkR14col)||sum(a[1],mkRl);
-    return av-bv;
+  const mkOrd14col=Object.keys(RAW.mkt[0]||{}).find(k=>k.includes('결제수')&&k.includes('14'));
+
+  function getStoreData(rows, mediaCost){
+    const revLc =sum(rows,mkRl);
+    const rev14 =sum(rows,mkR14col)||sum(rows,mkRl);
+    const ordLc =sum(rows,mkOrd);
+    const ord14 =mkOrd14col?sum(rows,mkOrd14col):ordLc;
+    const inflow=sum(rows,mkIn);
+    const cost  =mediaCost||null;
+    return{
+      revLc:won(revLc), rev14:won(rev14),
+      roasLc:cost>0?pct(revLc/cost):'—',
+      roas14:cost>0?pct(rev14/cost):'—',
+      ordLc:Math.round(ordLc).toLocaleString(),
+      ord14:Math.round(ord14).toLocaleString(),
+      cvrLc:inflow>0?pct(ordLc/inflow):'—',
+      cvr14:inflow>0?pct(ord14/inflow):'—',
+      inflow:Math.round(inflow).toLocaleString(),
+    };
+  }
+
+  const activeMC=MEDIA_COLS.filter(c=>c.on);
+  const activeSC=STORE_COLS.filter(c=>c.on);
+  const mLen=activeMC.length, sLen=activeSC.length;
+
+  // 헤더 구성
+  // 그룹 헤더
+  const groupHeader='<tr>'+
+    '<th style="text-align:left;border-right:2px solid var(--border-m)" colspan="2">매체 / 스토어 채널</th>'+
+    (mLen?`<th colspan="${mLen}" style="text-align:center;background:var(--blue-l);color:var(--blue);border-right:2px solid var(--border-m)">매체 대시보드</th>`:'<th style="border-right:2px solid var(--border-m)"></th>')+
+    (sLen?`<th colspan="${sLen}" style="text-align:center;background:var(--purple-l);color:var(--purple)">스토어 통계</th>`:'<th></th>')+
+    '</tr>';
+
+  const colHeader='<tr style="border-bottom:1px solid var(--border)">'+
+    '<th style="text-align:left;min-width:90px">매체</th>'+
+    '<th style="text-align:left;min-width:120px;border-right:2px solid var(--border-m)">스토어 채널</th>'+
+    activeMC.map((c,i)=>`<th${i===mLen-1?' style="border-right:2px solid var(--border-m)"':''}>${c.label}</th>`).join('')+
+    activeSC.map(c=>`<th>${c.label}</th>`).join('')+
+    '</tr>';
+
+  const thead='<thead>'+groupHeader+colHeader+'</thead>';
+
+  // 바디: 대응 행
+  let tbodyRows='';
+
+  MATCH_ROWS.forEach(row=>{
+    const mData=getMediaData(segs[row.mediaType]||[]);
+    // 스토어 채널 찾기 (부분 매칭)
+    const storeKey=Object.keys(mktByName).find(k=>
+      k===row.storeLabel||k.includes(row.storeLabel)||row.storeLabel.includes(k)
+    );
+    const storeRows=storeKey?mktByName[storeKey]:[];
+    const mediaCost=mData.cost;
+    const sData=getStoreData(storeRows, mediaCost);
+
+    const mFmt={
+      cost:won(mData.cost),rev:won(mData.rev),roas:mData.roas,cvr:mData.cvr,
+      ord:Math.round(mData.ord).toLocaleString(),
+      cartRev:won(mData.cartRev),cartOrd:Math.round(mData.cartOrd).toLocaleString(),
+      clicks:Math.round(mData.clicks).toLocaleString(),cpc:mData.cpc,cpm:mData.cpm,
+    };
+
+    tbodyRows+='<tr>'+
+      `<td style="text-align:left"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${row.mediaColor};margin-right:4px;vertical-align:middle"></span>${row.mediaLabel}</td>`+
+      `<td style="text-align:left;color:var(--t2);border-right:2px solid var(--border-m)">${storeKey||row.storeLabel}</td>`+
+      activeMC.map((c,i)=>`<td style="text-align:right${i===mLen-1?';border-right:2px solid var(--border-m)':''}">${mFmt[c.key]||'—'}</td>`).join('')+
+      activeSC.map(c=>`<td style="text-align:right">${sData[c.key]||'—'}</td>`).join('')+
+      '</tr>';
   });
 
-  // 매체 비용 매핑 (스토어 채널명 → 매체 비용)
-  const costMap={
-    '네이버 성과형디스플레이광고': sum(segs.gfa_perf,gCost),
-    '네이버 ADVoost쇼핑':          sum(segs.gfa_adv, gCost),
-    '네이버 쇼핑검색광고':         sum(segs.sa_shop, saCost),
-    '네이버 사이트검색광고':        sum(segs.sa_power,saCost),
-    '브랜드검색': sum(segs.sa_brand,saCost),
-  };
-  // META 계열
-  ['사용자정의'].forEach(k=>{costMap[k]=sum(segs.meta,meCost);});
+  // 스토어 전용 채널 (대응 없는 것들)
+  const mappedKeys=new Set(MATCH_ROWS.map(r=>{
+    return Object.keys(mktByName).find(k=>k===r.storeLabel||k.includes(r.storeLabel)||r.storeLabel.includes(k))||r.storeLabel;
+  }));
+  const unmapped=Object.entries(mktByName)
+    .filter(([k])=>!mappedKeys.has(k))
+    .sort((a,b)=>(sum(b[1],mkR14col)||sum(b[1],mkRl))-(sum(a[1],mkR14col)||sum(a[1],mkRl)));
 
-  const activeSCols=STORE_COLS.filter(c=>c.on);
-  const sTable=document.getElementById('store-detail-table');
-  if(sTable){
-    const thead='<thead><tr><th style="text-align:left">채널명</th>'+
-      activeSCols.map(c=>`<th>${c.label}</th>`).join('')+'</tr></thead>';
-
-    const tbody='<tbody>'+chSorted.map(([ch,rows])=>{
-      const revLc=sum(rows,mkRl);
-      const rev14=sum(rows,mkR14col)||sum(rows,mkRl);
-      const ordLc=sum(rows,mkOrd);
-      const ord14col=Object.keys(RAW.mkt[0]||{}).find(k=>k.includes('결제수')&&k.includes('14'));
-      const ord14=ord14col?sum(rows,ord14col):ordLc;
-      const inflow=sum(rows,mkIn);
-      // 비용 - 대응 매체 있으면 표시
-      const chCost=Object.entries(costMap).find(([k])=>ch.includes(k)||k.includes(ch))?.[1]||null;
-      const roasLc=chCost&&chCost>0?pct(revLc/chCost):'—';
-      const roas14=chCost&&chCost>0?pct(rev14/chCost):'—';
-      const cvrLc=inflow>0?pct(ordLc/inflow):'—';
-      const cvr14=inflow>0?pct(ord14/inflow):'—';
-
-      const fmtMap={
-        cost:chCost?won(chCost):'—',
-        revLc:won(revLc),rev14:won(rev14),
-        roasLc,roas14,
-        ordLc:Math.round(ordLc).toLocaleString(),
-        ord14:Math.round(ord14).toLocaleString(),
-        cvrLc,cvr14,
-        inflow:Math.round(inflow).toLocaleString(),
-      };
-      return '<tr>'+
-        `<td style="text-align:left;white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis" title="${ch}">${ch}</td>`+
-        activeSCols.map(c=>`<td style="text-align:right">${fmtMap[c.key]||'—'}</td>`).join('')+
+  if(unmapped.length){
+    tbodyRows+=`<tr><td colspan="${2+mLen+sLen}" style="padding:6px 8px;font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;background:var(--bg)">스토어 전용 채널</td></tr>`;
+    unmapped.forEach(([ch,rows])=>{
+      const sData=getStoreData(rows,null);
+      tbodyRows+='<tr>'+
+        `<td style="text-align:left;color:var(--t3)">—</td>`+
+        `<td style="text-align:left;color:var(--t2);border-right:2px solid var(--border-m)">${ch}</td>`+
+        activeMC.map((c,i)=>`<td style="text-align:right${i===mLen-1?';border-right:2px solid var(--border-m)':''}">—</td>`).join('')+
+        activeSC.map(c=>`<td style="text-align:right">${sData[c.key]||'—'}</td>`).join('')+
         '</tr>';
-    }).join('')+'</tbody>';
-    sTable.innerHTML=thead+tbody;
+    });
   }
+
+  // 합계 행
+  const totalMData=getMediaData(segs.total||[]);
+  const totalSData=getStoreData(Object.values(mktByName).flat(),null);
+  const totalMFmt={
+    cost:won(totalMData.cost),rev:won(totalMData.rev),roas:totalMData.roas,cvr:totalMData.cvr,
+    ord:Math.round(totalMData.ord).toLocaleString(),
+    cartRev:won(totalMData.cartRev),cartOrd:Math.round(totalMData.cartOrd).toLocaleString(),
+    clicks:Math.round(totalMData.clicks).toLocaleString(),cpc:totalMData.cpc,cpm:totalMData.cpm,
+  };
+  tbodyRows+='<tr style="font-weight:700;border-top:1px solid var(--border-m)">'+
+    `<td style="text-align:left">전체 합계</td>`+
+    `<td style="text-align:left;border-right:2px solid var(--border-m)">전체</td>`+
+    activeMC.map((c,i)=>`<td style="text-align:right${i===mLen-1?';border-right:2px solid var(--border-m)':''}">` +totalMFmt[c.key]+'</td>').join('')+
+    activeSC.map(c=>`<td style="text-align:right">${totalSData[c.key]||'—'}</td>`).join('')+
+    '</tr>';
+
+  const tbl=document.getElementById('detail-combined-table');
+  if(tbl) tbl.innerHTML=thead+'<tbody>'+tbodyRows+'</tbody>';
+}
+
+// ── 스토어 채널 계층 드릴다운 테이블 ──────────────────
+let drillAttr = '14';
+let drillExpanded = {}; // {key: true/false}
+
+function setDrillAttr(attr){
+  drillAttr=attr;
+  document.querySelectorAll('[data-drillattr]').forEach(el=>{
+    el.classList.toggle('on', el.dataset.drillattr===attr);
+  });
+  renderDrillTable();
+}
+
+const DRILL_COLS = [
+  {key:'revLc',  label:'결제금액(LC)'},
+  {key:'rev14',  label:'결제금액(+14)'},
+  {key:'roasLc', label:'ROAS(LC)'},
+  {key:'roas14', label:'ROAS(+14)'},
+  {key:'ordLc',  label:'결제수(LC)'},
+  {key:'ord14',  label:'결제수(+14)'},
+  {key:'cvrLc',  label:'결제율(LC)'},
+  {key:'cvr14',  label:'결제율(+14)'},
+  {key:'inflow', label:'유입수'},
+];
+
+function calcDrillMetrics(rows){
+  const mkR14col=Object.keys(RAW.mkt[0]||{}).find(k=>k.includes('결제금액')&&k.includes('14'))||COLS.mkR14;
+  const mkOrd14col=Object.keys(RAW.mkt[0]||{}).find(k=>k.includes('결제수')&&k.includes('14'));
+  const revLc =sum(rows,COLS.mkRl);
+  const rev14 =sum(rows,mkR14col)||revLc;
+  const ordLc =sum(rows,COLS.mkOrd);
+  const ord14 =mkOrd14col?sum(rows,mkOrd14col):ordLc;
+  const inflow=sum(rows,COLS.mkIn);
+  return{
+    revLc:won(revLc), rev14:won(rev14),
+    roasLc:'—', roas14:'—', // 광고비 없으므로
+    ordLc:Math.round(ordLc).toLocaleString(),
+    ord14:Math.round(ord14).toLocaleString(),
+    cvrLc:inflow>0?pct(ordLc/inflow):'—',
+    cvr14:inflow>0?pct(ord14/inflow):'—',
+    inflow:Math.round(inflow).toLocaleString(),
+    _revLc:revLc, _rev14:rev14, // 정렬용
+  };
+}
+
+function renderDrillTable(){
+  if(!COLS.ready||!RAW.mkt.length)return;
+  const {mkProp,mkGrp,mkName,mkDet,mkDateC}=COLS;
+  const from=curFrom,to=curTo;
+  const nrm=s=>(s||'').toString().trim();
+  const mkt=filterByDate(RAW.mkt,mkDateC,from,to);
+
+  // 계층 구조 구축: prop → grp → name → det
+  const tree={};
+  mkt.forEach(r=>{
+    const prop=nrm(r[mkProp])||'(미분류)';
+    const grp =nrm(r[mkGrp]) ||'(미분류)';
+    const name=nrm(r[mkName])||'(미분류)';
+    const det =nrm(r[mkDet]) ||'(기타)';
+    if(!tree[prop])tree[prop]={rows:[],grps:{}};
+    tree[prop].rows.push(r);
+    if(!tree[prop].grps[grp])tree[prop].grps[grp]={rows:[],names:{}};
+    tree[prop].grps[grp].rows.push(r);
+    if(!tree[prop].grps[grp].names[name])tree[prop].grps[grp].names[name]={rows:[],dets:{}};
+    tree[prop].grps[grp].names[name].rows.push(r);
+    if(!tree[prop].grps[grp].names[name].dets[det])tree[prop].grps[grp].names[name].dets[det]=[];
+    tree[prop].grps[grp].names[name].dets[det].push(r);
+  });
+
+  const sortKey=drillAttr==='14'?'_rev14':'_revLc';
+  const sortEntries=entries=>entries.sort((a,b)=>calcDrillMetrics(b[1].rows||b[1])[sortKey]-calcDrillMetrics(a[1].rows||a[1])[sortKey]);
+
+  const nCols=DRILL_COLS.length;
+  const thead=`<thead><tr>
+    <th style="text-align:left;min-width:180px">채널</th>
+    ${DRILL_COLS.map(c=>`<th style="white-space:nowrap">${c.label}</th>`).join('')}
+  </tr></thead>`;
+
+  function makeRow(label, rows, depth, key, isLeaf){
+    const m=calcDrillMetrics(rows);
+    const indent=depth*16;
+    const isExp=drillExpanded[key];
+    const toggle=!isLeaf?`<span style="display:inline-block;width:12px;text-align:center;cursor:pointer;color:var(--blue)" onclick="toggleDrill('${key}')">${isExp?'▼':'▶'}</span>`:'<span style="display:inline-block;width:12px"></span>';
+    const depthColors=['var(--text)','var(--t2)','var(--t2)','var(--t3)'];
+    const fontWeight=depth===0?'700':depth===1?'600':'400';
+    const bgStyle=depth===0?'background:var(--bg)':depth===1?'background:var(--surface)':'';
+    return`<tr style="${bgStyle}" data-drill-key="${key}">
+      <td style="text-align:left;padding-left:${8+indent}px;color:${depthColors[depth]};font-weight:${fontWeight}">
+        ${toggle}${label}
+      </td>
+      ${DRILL_COLS.map(c=>`<td style="text-align:right">${m[c.key]}</td>`).join('')}
+    </tr>`;
+  }
+
+  let rows='';
+  sortEntries(Object.entries(tree)).forEach(([prop,propData])=>{
+    const propKey=`p:${prop}`;
+    rows+=makeRow(prop, propData.rows, 0, propKey, false);
+    if(drillExpanded[propKey]){
+      sortEntries(Object.entries(propData.grps)).forEach(([grp,grpData])=>{
+        const grpKey=`${propKey}|g:${grp}`;
+        rows+=makeRow(grp, grpData.rows, 1, grpKey, false);
+        if(drillExpanded[grpKey]){
+          sortEntries(Object.entries(grpData.names)).forEach(([name,nameData])=>{
+            const nameKey=`${grpKey}|n:${name}`;
+            rows+=makeRow(name, nameData.rows, 2, nameKey, false);
+            if(drillExpanded[nameKey]){
+              sortEntries(Object.entries(nameData.dets)).forEach(([det,detRows])=>{
+                rows+=makeRow(det, detRows, 3, `${nameKey}|d:${det}`, true);
+              });
+            }
+          });
+        }
+      });
+    }
+  });
+
+  const tbl=document.getElementById('drill-table');
+  if(tbl) tbl.innerHTML=thead+`<tbody>${rows}</tbody>`;
+
+  const note=document.getElementById('drill-note');
+  if(note) note.textContent=`* ${drillAttr==='14'?'+14일 기여도':'마지막클릭'} 기준 / ROAS는 광고비 미연동 채널 제외`;
+}
+
+function toggleDrill(key){
+  drillExpanded[key]=!drillExpanded[key];
+  renderDrillTable();
 }
 
 function renderChChart(){
@@ -1468,7 +1762,7 @@ async function loadAll(){
       meRoas:fc(mC,'구매 ROAS','ROAS','광고수익률'), meCvr:fc(mC,'전환 구매','전환율','CVR'),
       meCost:'총비용(vat-)',
       // 스토어 마케팅 컬럼
-      mkGrp:fc(mkC,'채널그룹','채널 그룹'), mkName:fc(mkC,'채널명','채널 이름'), mkCust:fc(mkC,'고객수','고객 수','customers'),
+      mkProp:fc(mkC,'채널속성','채널 속성','channel_type'), mkGrp:fc(mkC,'채널그룹','채널 그룹'), mkName:fc(mkC,'채널명','채널 이름'), mkCust:fc(mkC,'고객수','고객 수','customers'),
       mkDet:fc(mkC,'채널상세','채널 상세'), mkIn:fc(mkC,'유입수','방문수','세션수'),
       mkRl:fc(mkC,'결제금액(마지막클릭)','결제금액','구매금액','매출'),
       mkR14:fc(mkC,'결제금액(+14일기여도추정)','결제금액(14일)'),
