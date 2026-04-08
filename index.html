@@ -119,7 +119,6 @@ tr:hover td{background:var(--bg)}
 <!-- 기간 필터 바 -->
 <div class="period-bar">
   <div class="period-label">기간</div>
-  <button class="arrow-btn" onclick="shiftPeriod(-1)" title="이전 기간">&#9664;</button>
   <button class="ppill" data-key="yesterday" onclick="setPeriod('yesterday')">어제</button>
   <button class="ppill" data-key="7d" onclick="setPeriod('7d')">7일</button>
   <button class="ppill" data-key="14d" onclick="setPeriod('14d')">14일</button>
@@ -130,7 +129,6 @@ tr:hover td{background:var(--bg)}
   <button class="ppill" data-key="week_before" onclick="setPeriod('week_before')">지지난주</button>
   <button class="ppill" data-key="this_month" onclick="setPeriod('this_month')">이번달</button>
   <button class="ppill" data-key="last_month" onclick="setPeriod('last_month')">지난달</button>
-  <button class="arrow-btn" onclick="shiftPeriod(1)" title="다음 기간">&#9654;</button>
   <div class="period-divider"></div>
   <div class="period-custom">
     <button class="arrow-btn" onclick="shiftCustomDate(-1)" title="하루 이전">&#9664;</button>
@@ -324,11 +322,15 @@ function shiftCustomDate(dir){
   const t=document.getElementById('date-to');
   if(!f.value||!t.value)return;
   const fd=new Date(f.value), td=new Date(t.value);
-  fd.setDate(fd.getDate()+dir);
-  td.setDate(td.getDate()+dir);
-  f.value=fd.toISOString().slice(0,10);
-  t.value=td.toISOString().slice(0,10);
-  setPeriod('custom');
+  const days=Math.round((td-fd)/(1000*60*60*24))+1;
+  fd.setDate(fd.getDate()+dir*days);
+  td.setDate(td.getDate()+dir*days);
+  const toYMD=d=>d.toISOString().slice(0,10);
+  f.value=toYMD(fd);
+  t.value=toYMD(td);
+  curFrom=f.value; curTo=t.value;
+  document.querySelectorAll('.ppill').forEach(el=>el.classList.remove('on'));
+  renderDashboard();
 }
 
 function shiftPeriod(dir){
