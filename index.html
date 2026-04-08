@@ -24,11 +24,11 @@ body{font-family:'Noto Sans KR',-apple-system,sans-serif;background:var(--bg);co
 .rbtn:hover{background:var(--bg)}
 
 /* 기간 필터 */
-.period-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:.625rem 2rem;display:flex;align-items:center;gap:6px;flex-wrap:wrap;position:sticky;top:54px;z-index:99}
+.period-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:.5rem 2rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap;position:sticky;top:54px;z-index:99}
 .ppill{font-size:11px;padding:4px 10px;border-radius:16px;border:1px solid var(--border-m);background:transparent;color:var(--t2);cursor:pointer;font-family:inherit;white-space:nowrap}
 .ppill:hover{border-color:var(--blue);color:var(--blue)}
 .ppill.on{background:var(--text);color:#fff;border-color:var(--text);font-weight:500}
-.period-custom{display:flex;align-items:center;gap:6px;margin-left:auto}
+.period-custom{display:flex;align-items:center;gap:5px}.period-divider{width:1px;height:18px;background:var(--border-m);margin:0 4px}
 .period-custom input[type=date]{font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid var(--border-m);font-family:inherit;color:var(--text);background:var(--surface)}
 .period-custom .apply-btn{font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid var(--blue);color:var(--blue);background:transparent;cursor:pointer;font-family:inherit}
 .period-custom .apply-btn:hover{background:var(--blue-l)}
@@ -131,10 +131,13 @@ tr:hover td{background:var(--bg)}
   <button class="ppill" data-key="this_month" onclick="setPeriod('this_month')">이번달</button>
   <button class="ppill" data-key="last_month" onclick="setPeriod('last_month')">지난달</button>
   <button class="arrow-btn" onclick="shiftPeriod(1)" title="다음 기간">&#9654;</button>
+  <div class="period-divider"></div>
   <div class="period-custom">
+    <button class="arrow-btn" onclick="shiftCustomDate(-1)" title="하루 이전">&#9664;</button>
     <input type="date" id="date-from">
     <span style="color:var(--t3);font-size:11px">~</span>
     <input type="date" id="date-to">
+    <button class="arrow-btn" onclick="shiftCustomDate(1)" title="하루 다음">&#9654;</button>
     <button class="apply-btn" onclick="setPeriod('custom')">적용</button>
   </div>
 </div>
@@ -314,6 +317,18 @@ function getPeriodRange(key){
     }
     default: return null;
   }
+}
+
+function shiftCustomDate(dir){
+  const f=document.getElementById('date-from');
+  const t=document.getElementById('date-to');
+  if(!f.value||!t.value)return;
+  const fd=new Date(f.value), td=new Date(t.value);
+  fd.setDate(fd.getDate()+dir);
+  td.setDate(td.getDate()+dir);
+  f.value=fd.toISOString().slice(0,10);
+  t.value=td.toISOString().slice(0,10);
+  setPeriod('custom');
 }
 
 function shiftPeriod(dir){
