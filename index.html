@@ -98,6 +98,8 @@ tr:hover td{background:var(--bg)}
 .kb-row:last-child{border-bottom:none}
 .kb-row-label{font-size:11px;color:var(--t2)}
 .kb-row-val{font-size:12px;font-weight:500;color:var(--text)}
+.arrow-btn{font-size:13px;padding:3px 10px;border-radius:6px;border:1px solid var(--border-m);background:transparent;color:var(--t2);cursor:pointer;font-family:inherit;line-height:1}
+.arrow-btn:hover{background:var(--bg);border-color:var(--blue);color:var(--blue)}
 .attr-btn{font-size:11px;padding:3px 10px;border-radius:12px;border:1px solid var(--border-m);background:transparent;color:var(--t2);cursor:pointer;font-family:inherit;white-space:nowrap}
 .attr-btn:hover{border-color:var(--blue);color:var(--blue)}
 .attr-btn.on{background:var(--purple);color:#fff;border-color:var(--purple);font-weight:500}
@@ -117,6 +119,7 @@ tr:hover td{background:var(--bg)}
 <!-- 기간 필터 바 -->
 <div class="period-bar">
   <div class="period-label">기간</div>
+  <button class="arrow-btn" onclick="shiftPeriod(-1)" title="이전 기간">&#9664;</button>
   <button class="ppill" data-key="yesterday" onclick="setPeriod('yesterday')">어제</button>
   <button class="ppill" data-key="7d" onclick="setPeriod('7d')">7일</button>
   <button class="ppill" data-key="14d" onclick="setPeriod('14d')">14일</button>
@@ -127,6 +130,7 @@ tr:hover td{background:var(--bg)}
   <button class="ppill" data-key="week_before" onclick="setPeriod('week_before')">지지난주</button>
   <button class="ppill" data-key="this_month" onclick="setPeriod('this_month')">이번달</button>
   <button class="ppill" data-key="last_month" onclick="setPeriod('last_month')">지난달</button>
+  <button class="arrow-btn" onclick="shiftPeriod(1)" title="다음 기간">&#9654;</button>
   <div class="period-custom">
     <input type="date" id="date-from">
     <span style="color:var(--t3);font-size:11px">~</span>
@@ -310,6 +314,21 @@ function getPeriodRange(key){
     }
     default: return null;
   }
+}
+
+function shiftPeriod(dir){
+  if(!curFrom||!curTo)return;
+  const f=new Date(curFrom), t=new Date(curTo);
+  const days=Math.round((t-f)/(1000*60*60*24))+1;
+  const newF=new Date(f); newF.setDate(newF.getDate()+dir*days);
+  const newT=new Date(t); newT.setDate(newT.getDate()+dir*days);
+  const toYMD=d=>d.toISOString().slice(0,10);
+  curFrom=toYMD(newF); curTo=toYMD(newT);
+  document.getElementById('date-from').value=curFrom;
+  document.getElementById('date-to').value=curTo;
+  // 기간 버튼 on 해제 (커스텀 이동이므로)
+  document.querySelectorAll('.ppill').forEach(el=>el.classList.remove('on'));
+  renderDashboard();
 }
 
 function setPeriod(key){
