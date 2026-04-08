@@ -199,29 +199,43 @@ tr:hover td{background:var(--bg)}
       </div>
     </div>
   </div>
-  <div class="split">
-    <div class="panel">
-      <div class="ph"><div class="pt" id="lt">매체 대시보드 — 클릭수</div><span class="pb bm">매체 기준</span></div>
-      <div class="kg k4" id="lk"></div>
-      <div class="cw"><canvas id="lc"></canvas></div>
-      <div class="leg" id="ll"></div>
-      <p class="pn" id="ln"></p>
-    </div>
-    <div class="panel">
-      <div class="ph" style="flex-wrap:wrap;gap:6px">
-      <div class="pt" id="rt">스마트스토어 통계 — 유입수</div>
-      <div style="display:flex;align-items:center;gap:4px;margin-left:auto">
+  <!-- 통합 비교 패널 -->
+  <div class="panel" style="margin-bottom:1rem">
+    <div class="ph" style="flex-wrap:wrap;gap:8px">
+      <div>
+        <div class="pt" id="lt">매체 vs 스토어 통계 — 클릭수 · 유입수</div>
+        <div style="font-size:10px;color:var(--t2);margin-top:2px" id="ln"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
         <button class="attr-btn on" data-attr="14" onclick="setAttr('14')">+14일</button>
         <button class="attr-btn" data-attr="lc" onclick="setAttr('lc')">마지막클릭</button>
+        <span class="pb bm">매체 기준</span>
         <span class="pb bs">네이버 통계 기준</span>
       </div>
     </div>
-      <div class="kg k3" id="rk"></div>
-      <div class="cw"><canvas id="rc"></canvas></div>
-      <div class="leg" id="rl"></div>
-      <p class="pn" id="rn"></p>
+    <!-- KPI 카드: 좌(매체) + 우(스토어 상위) -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1rem">
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">매체 대시보드</div>
+        <div class="kg k4" id="lk"></div>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">스마트스토어 통계</div>
+        <div class="kg" id="rk" style="grid-template-columns:repeat(4,minmax(0,1fr))"></div>
+      </div>
     </div>
+    <!-- 통합 묶음 막대 차트 -->
+    <div style="position:relative;width:100%;height:260px;margin-bottom:.75rem">
+      <canvas id="compChart"></canvas>
+    </div>
+    <div class="leg" id="compLeg"></div>
+    <p class="pn" id="rn"></p>
   </div>
+  <!-- 숨겨진 캔버스 (기존 코드 호환용) -->
+  <canvas id="lc" style="display:none"></canvas>
+  <canvas id="rc" style="display:none"></canvas>
+  <div id="ll" style="display:none"></div>
+  <div id="rl" style="display:none"></div>
   <div class="ibox">
     <div class="ilbl">이 지표에서 주목할 점</div>
     <div class="iitems" id="ins"></div>
@@ -588,6 +602,7 @@ function renderDashboard(){
   window._tabs=tabs;
   setTab(curTab,true);
   renderKpiBoard();
+  renderCompChart();
   renderRightDonut();
   renderChChart();
 }
@@ -623,7 +638,7 @@ function setTab(i,skipTabHighlight){
     options:JSON.parse(JSON.stringify(dOpt))});
   // 우측: 스토어 마케팅 채널명 전체 상위8+기타
   renderRightDonut();
-  if(!skipTabHighlight)document.querySelectorAll('.mtab').forEach((el,idx)=>el.classList.toggle('on',idx===i));
+  if(!skipTabHighlight){document.querySelectorAll('.mtab').forEach((el,idx)=>el.classList.toggle('on',idx===i));renderCompChart();}
 }
 
 
@@ -636,6 +651,7 @@ function setAttr(attr){
   });
   renderDashboard();
   renderKpiBoard();
+  renderCompChart();
   renderRightDonut();
 }
 
@@ -839,6 +855,190 @@ const CH_COLORS = [
   '#378ADD','#5DCAA5','#7F77DD','#EF9F27','#E24B4A'
 ];
 
+let compChart = null;
+
+// 매체 ↔ 스토어 채널 대응 매핑
+const MEDIA_MAP = [
+  {mediaLabel:'GFA(성과형)',    storeLabel:'네이버 성과형디스플레이광고', mediaColor:'#185FA5', storeColor:'#85B7EB'},
+  {mediaLabel:'GFA(ADVoost)',   storeLabel:'네이버 ADVoost쇼핑',          mediaColor:'#0C447C', storeColor:'#B5D4F4'},
+  {mediaLabel:'SA(쇼핑검색)',   storeLabel:'네이버 쇼핑검색광고',         mediaColor:'#3B6D11', storeColor:'#97C459'},
+  {mediaLabel:'SA(파워링크)',   storeLabel:'네이버 사이트검색광고',        mediaColor:'#27500A', storeColor:'#C0DD97'},
+  {mediaLabel:'BSA(브랜드검색)',storeLabel:'네이버 브랜드검색(일반형)',    mediaColor:'#854F0B', storeColor:'#FAC775'},
+  {mediaLabel:'META',           storeLabel:'사용자정의',                   mediaColor:'#3b5998', storeColor:'#7F77DD'},
+];
+
+function renderCompChart(){
+  if(!COLS.ready||!RAW.mkt.length)return;
+  const {saDateC,gDateC,meDateC,mkDateC,
+    saClick,saRev,saCost,saCartRev,saOrd,
+    gClick,gRev,gCost,gCartRev,gOrd,
+    meClick,meRev,meCost,
+    mkName,mkIn,mkRl,mkR14,mkOrd,mkCust,saCampType,gCampName,gAdGroup}=COLS;
+  const from=curFrom,to=curTo;
+  const nrm=s=>(s||'').toString().trim();
+
+  const saAll  =filterByDate(RAW.sa,   saDateC,from,to);
+  const gfaAll =filterByDate(RAW.gfa,  gDateC, from,to);
+  const metaAll=filterByDate(RAW.meta, meDateC,from,to);
+  const mkt    =filterByDate(RAW.mkt,  COLS.mkDateC,from,to);
+
+  const useR14=curAttr==='14';
+
+  // 매체 데이터
+  const sa_brand  =saAll.filter(r=>nrm(r[saCampType]).includes('브랜드검색'));
+  const sa_shop   =saAll.filter(r=>nrm(r[saCampType])==='쇼핑검색광고');
+  const sa_power  =saAll.filter(r=>nrm(r[saCampType])==='파워링크');
+  const gfa_perf  =gfaAll.filter(r=>!nrm(r[gCampName]).includes('ADVoost')&&!nrm(r[gAdGroup]).includes('올리브영'));
+  const gfa_adv   =gfaAll.filter(r=>nrm(r[gCampName]).includes('ADVoost'));
+
+  // 탭별 매체 값 함수
+  function mediaVal(rows, tab){
+    if(tab===0) return sum(rows,saClick)||sum(rows,gClick)||sum(rows,meClick);
+    if(tab===1) return sum(rows,saRev)||sum(rows,gRev)||sum(rows,meRev);
+    if(tab===2) return sum(rows,saCartRev)||sum(rows,gCartRev);
+    if(tab===3){
+      const cost=sum(rows,saCost)||sum(rows,gCost)||sum(rows,meCost);
+      const rev=sum(rows,saRev)||sum(rows,gRev)||sum(rows,meRev);
+      return cost>0?rev/cost*100:0;
+    }
+    if(tab===4){
+      const clicks=sum(rows,saClick)||sum(rows,gClick)||sum(rows,meClick);
+      const ords=sum(rows,saOrd)||sum(rows,gOrd);
+      return clicks>0?ords/clicks*100:0;
+    }
+    return 0;
+  }
+
+  // 스토어 채널 값 함수
+  function storeVal(chName, tab){
+    // 사용자정의 = META 대응
+    const rows=chName==='사용자정의'
+      ? mkt.filter(r=>nrm(r[mkName]).includes('사용자정의'))
+      : mkt.filter(r=>nrm(r[mkName])===chName||nrm(r[mkName]).includes(chName));
+    if(tab===0) return sum(rows,mkIn);
+    if(tab===1) return useR14?(sum(rows,mkR14)||sum(rows,mkRl)):sum(rows,mkRl);
+    if(tab===2) return sum(rows,mkOrd);
+    if(tab===3){
+      const rev=useR14?(sum(rows,mkR14)||sum(rows,mkRl)):sum(rows,mkRl);
+      // ROAS: 매체 광고비 필요, 일단 스토어 매출만 표시
+      return rev/1000;
+    }
+    if(tab===4){
+      const in_=sum(rows,mkIn);
+      const ord=sum(rows,mkOrd);
+      return in_>0?ord/in_*100:0;
+    }
+    return 0;
+  }
+
+  // 대응 채널 데이터셋 구성
+  const mediaVals={
+    'GFA(성과형)':    mediaVal(gfa_perf,  curTab),
+    'GFA(ADVoost)':   mediaVal(gfa_adv,   curTab),
+    'SA(쇼핑검색)':   mediaVal(sa_shop,   curTab),
+    'SA(파워링크)':   mediaVal(sa_power,  curTab),
+    'BSA(브랜드검색)':mediaVal(sa_brand,  curTab),
+    'META':           mediaVal(metaAll,   curTab),
+  };
+
+  // 스토어 전체 채널 목록 집계
+  const storeMap={};
+  mkt.forEach(r=>{
+    const ch=nrm(r[mkName]);
+    if(!ch)return;
+    if(!storeMap[ch])storeMap[ch]=0;
+    let v=0;
+    if(curTab===0)v=num(r[mkIn]);
+    else if(curTab===1)v=useR14?(num(r[mkR14])||num(r[mkRl])):num(r[mkRl]);
+    else if(curTab===2)v=num(r[mkOrd]);
+    else if(curTab===3)v=useR14?(num(r[mkR14])||num(r[mkRl])):num(r[mkRl]);
+    else if(curTab===4){} // 별도 처리
+    storeMap[ch]+=v;
+  });
+
+  // 대응된 스토어 채널 목록
+  const mappedStoreLabels=new Set(MEDIA_MAP.map(m=>m.storeLabel));
+  // 대응 안된 스토어 채널 (값 있는 것만)
+  const unmappedStore=Object.entries(storeMap)
+    .filter(([ch,v])=>!mappedStoreLabels.has(ch)&&v>0&&ch!=='사용자정의')
+    .sort((a,b)=>b[1]-a[1])
+    .slice(0,5); // 상위 5개만
+
+  // 라벨 및 데이터셋 구성
+  const labels=[];
+  const mediaDataset=[];
+  const storeDataset=[];
+  const mediaColors=[];
+  const storeColors=[];
+
+  MEDIA_MAP.forEach(m=>{
+    const mv=mediaVals[m.mediaLabel]||0;
+    const sv=storeVal(m.storeLabel, curTab);
+    if(mv===0&&sv===0)return; // 둘 다 0이면 생략
+    labels.push(m.mediaLabel);
+    mediaDataset.push(mv);
+    storeDataset.push(sv);
+    mediaColors.push(m.mediaColor);
+    storeColors.push(m.storeColor);
+  });
+
+  // 대응 없는 스토어 채널
+  unmappedStore.forEach(([ch,v])=>{
+    labels.push(ch);
+    mediaDataset.push(null); // 매체 없음
+    storeDataset.push(v);
+    mediaColors.push('transparent');
+    storeColors.push('#888780');
+  });
+
+  const isWon=curTab===1;
+  const isPct=curTab===3||curTab===4;
+  const fmtVal=v=>v===null?null:isWon?Math.round(v):isPct?parseFloat(v.toFixed(1)):Math.round(v);
+  const fmtTip=v=>v===null?'—':isWon?won(v):isPct?v.toFixed(1)+'%':Math.round(v).toLocaleString();
+
+  if(compChart){compChart.destroy();compChart=null;}
+  const ctx=document.getElementById('compChart');
+  if(!ctx)return;
+
+  compChart=new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        {label:'매체 대시보드',data:mediaDataset.map(fmtVal),
+         backgroundColor:mediaColors,borderRadius:3,
+         skipNull:true},
+        {label:'스토어 통계',data:storeDataset.map(fmtVal),
+         backgroundColor:storeColors,borderRadius:3},
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{
+          label:c=>{
+            const raw=c.dataset.label==='매체 대시보드'?mediaDataset[c.dataIndex]:storeDataset[c.dataIndex];
+            return c.dataset.label+': '+fmtTip(raw);
+          }
+        }}
+      },
+      scales:{
+        x:{ticks:{font:{size:10},maxRotation:20,autoSkip:false},grid:{display:false}},
+        y:{ticks:{font:{size:10},callback:v=>isWon?'₩'+Math.round(v/1000)+'K':isPct?v+'%':v.toLocaleString()},
+           grid:{color:'rgba(0,0,0,0.05)'}}
+      }
+    }
+  });
+
+  // 범례
+  const legEl=document.getElementById('compLeg');
+  if(legEl)legEl.innerHTML=
+    `<span class="li"><span class="ls" style="background:#185FA5"></span>매체 대시보드</span>`+
+    `<span class="li"><span class="ls" style="background:#85B7EB"></span>스토어 통계</span>`+
+    (unmappedStore.length?`<span class="li"><span class="ls" style="background:#888780"></span>스토어 전용 채널</span>`:'');
+}
+
 function renderRightDonut(){
   if(!COLS.ready||!RAW.mkt.length)return;
   const {mkName,mkIn,mkRl,mkR14,mkOrd,mkCust,mkDateC}=COLS;
@@ -898,6 +1098,22 @@ function renderRightDonut(){
         const p=total>0?(c.raw/total*100).toFixed(1)+'%':'0%';
         return c.label+': '+(isWon?won(c.raw):Math.round(c.raw).toLocaleString())+' ('+p+')';
       }}}}}});
+
+  // rk KPI 카드 동적 업데이트 (상위 8개)
+  const rkEl=document.getElementById('rk');
+  if(rkEl){
+    const topN=sorted.slice(0,8);
+    const subLabel=curTab===0?'유입수':curTab===1||curTab===3?'결제금액':curTab===4?'결제수':'';
+    rkEl.innerHTML=topN.map(([ch,val],i)=>`
+      <div class="kpi">
+        <div class="kl"><span class="dot" style="background:${colors[i]}"></span>${ch}</div>
+        <div class="kv">${isWon?won(val):Math.round(val).toLocaleString()}</div>
+        <div class="ks">${subLabel}</div>
+      </div>`).join('');
+    // 그리드를 상위 채널 수에 맞게 조정
+    const cols=topN.length<=3?topN.length:topN.length<=6?3:4;
+    rkEl.style.gridTemplateColumns=`repeat(${cols},minmax(0,1fr))`;
+  }
 }
 
 function renderChChart(){
