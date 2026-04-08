@@ -743,9 +743,9 @@ function renderKpiBoard(){
          total:won(gfaCartT+saCartT),
          sub:'GFA + SA 장바구니 매출액',
          rows:[{l:'GFA 장바구니',v:won(gfaCartT)},
-               {l:'SA 장바구니',v:won(saCartT)},
-               {l:'META',v:'—'},
-               {l:'BSA',v:'—'}]},
+               {l:'SA 장바구니',v:won(saCartT-sum(sa_brand_kb,saCartRev))},
+               {l:'BSA 장바구니',v:won(sum(sa_brand_kb,saCartRev))},
+               {l:'META',v:'—'}]},
      c2:EMPTY,
      c3:EMPTY},
 
