@@ -698,12 +698,12 @@ function setTab(i,skipTabHighlight){
   // 통합 패널 타이틀 업데이트
   const ltEl=document.getElementById('lt');
   if(ltEl){const tab=['클릭수 · 유입수','매출','장바구니 매출','ROAS · 실질 ROAS','전환율 · 결제율'];ltEl.textContent='매체 vs 스토어 통계 — '+tab[i];}
-  document.getElementById('lk').innerHTML=t.lk.map(k=>`<div class="kpi"><div class="kl"><span class="dot" style="background:${k.c}"></span>${k.l}</div><div class="kv">${k.v}</div><div class="ks">${k.s}</div></div>`).join('');
-  document.getElementById('rk').innerHTML=t.rk.map(k=>`<div class="kpi"><div class="kl"><span class="dot" style="background:${k.c}"></span>${k.l}</div><div class="kv">${k.v}</div><div class="ks">${k.s}</div></div>`).join('');
+  _s('lk',t.lk.map(k=>`<div class="kpi"><div class="kl"><span class="dot" style="background:${k.c}"></span>${k.l}</div><div class="kv">${k.v}</div><div class="ks">${k.s}</div></div>`).join(''),'innerHTML');
+  _s('rk',t.rk.map(k=>`<div class="kpi"><div class="kl"><span class="dot" style="background:${k.c}"></span>${k.l}</div><div class="kv">${k.v}</div><div class="ks">${k.s}</div></div>`).join(''),'innerHTML');
   _s('ll',t.ll.map(l=>`<span class="li"><span class="ls" style="background:${l.c}"></span>${l.l}</span>`).join(''),'innerHTML');
   _s('rl',t.rl.map(l=>`<span class="li"><span class="ls" style="background:${l.c}"></span>${l.l}</span>`).join(''),'innerHTML');
-  document.getElementById('ins').innerHTML=t.ins.map(it=>`<div class="irow"><div class="idot ${it.t}"></div><div class="itx">${it.tx}</div></div>`).join('');
-  document.getElementById('dt').innerHTML='<thead><tr>'+t.th.map(h=>`<th>${h}</th>`).join('')+'</tr></thead><tbody>'+t.tr.map(r=>'<tr>'+r.map((c,ci)=>`<td${ci>0?' style="text-align:right"':''}>${c}</td>`).join('')+'</tr>').join('')+'</tbody>';
+  _s('ins',t.ins.map(it=>`<div class="irow"><div class="idot ${it.t}"></div><div class="itx">${it.tx}</div></div>`).join(''),'innerHTML');
+  _s('dt','<thead><tr>'+t.th.map(h=>`<th>${h}</th>`).join('')+'</tr></thead><tbody>'+t.tr.map(r=>'<tr>'+r.map((c,ci)=>`<td${ci>0?' style="text-align:right"':''}>${c}</td>`).join('')+'</tr>').join('')+'</tbody>','innerHTML');
   if(lC){lC.destroy();lC=null;}if(rC){rC.destroy();rC=null;}
   const dOpt={responsive:true,maintainAspectRatio:false,cutout:'60%',
     plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{
@@ -711,7 +711,7 @@ function setTab(i,skipTabHighlight){
       const pct2=total>0?(c.raw/total*100).toFixed(1)+'%':'0%';
       return c.label+': '+won(c.raw)+' ('+pct2+')';
     }}}}};
-  lC=new Chart(document.getElementById('lc'),{type:'doughnut',
+  const _lc=document.getElementById('lc'); if(_lc) lC=new Chart(_lc,{type:'doughnut',
     data:{labels:t.lch.labels,datasets:[{data:t.lch.data,backgroundColor:t.lch.colors,borderWidth:2,borderColor:'#fff'}]},
     options:JSON.parse(JSON.stringify(dOpt))});
   // 우측: 스토어 마케팅 채널명 전체 상위8+기타
