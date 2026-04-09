@@ -774,11 +774,11 @@ function renderKpiBoard(){
   const mktOrdF=rows=>useR14?(sum(rows,ordCol)||sum(rows,mkOrd)):sum(rows,mkOrd);
 
   // 매체 집계
-  const gfaClicks=sum(gfaAll,gClick), saClicks=sum(saAll,saClick), meClicks=sum(metaAll,meClick);
-  const gfaRevT  =sum(gfaAll,gRev),   saRevT  =sum(saAll,saRev),   meRevT  =sum(metaAll,meRev);
-  const gfaCost  =sum(gfaAll,gCost),  saCostT =sum(saAll,saCost),  meCostT =sum(metaAll,meCost);
-  const gfaCartT =sum(gfaAll,gCartRev), saCartT=sum(saAll,saCartRev);
-  const gfaOrdT  =sum(gfaAll,gOrd),   saOrdT  =sum(saAll,saOrd);
+  const gfaClicks=sum(gfaAll,'클릭수'), saClicks=sum(saAll,'클릭수'), meClicks=sum(metaAll,'클릭수');
+  const gfaRevT  =sum(gfaAll,'구매완료 매출액'), saRevT=sum(saAll,'구매완료 매출액'), meRevT=sum(metaAll,'구매완료 매출액');
+  const gfaCost  =sum(gfaAll,'총비용(vat-)'), saCostT=sum(saAll,'총비용(vat-)'), meCostT=sum(metaAll,'총비용(vat-)');
+  const gfaCartT =sum(gfaAll,'장바구니 매출액'), saCartT=sum(saAll,'장바구니 매출액');
+  const gfaOrdT  =sum(gfaAll,'구매완료 전환수'), saOrdT=sum(saAll,'구매완료 전환수');
 
   // 스토어 마케팅 전체 집계
   const mktTotalRev=mktRev(mkt);
@@ -972,17 +972,17 @@ function renderCompChart(){
 
   // 탭별 매체 값 함수
   function mediaVal(rows, tab){
-    if(tab===0) return sum(rows,saClick)+sum(rows,gClick)+sum(rows,meClick);
-    if(tab===1) return sum(rows,saRev)+sum(rows,gRev)+sum(rows,meRev);
-    if(tab===2) return sum(rows,saCartRev)+sum(rows,gCartRev);
+    if(tab===0) return sum(rows,'클릭수');
+    if(tab===1) return sum(rows,'구매완료 매출액');
+    if(tab===2) return sum(rows,'장바구니 매출액');
     if(tab===3){
-      const cost=sum(rows,saCost)+sum(rows,gCost)+sum(rows,meCost);
-      const rev=sum(rows,saRev)+sum(rows,gRev)+sum(rows,meRev);
+      const cost=sum(rows,'총비용(vat-)');
+      const rev=sum(rows,'구매완료 매출액');
       return cost>0?rev/cost*100:0;
     }
     if(tab===4){
-      const clicks=sum(rows,saClick)+sum(rows,gClick)+sum(rows,meClick);
-      const ords=sum(rows,saOrd)+sum(rows,gOrd);
+      const clicks=sum(rows,'클릭수');
+      const ords=sum(rows,'구매완료 전환수');
       return clicks>0?ords/clicks*100:0;
     }
     return 0;
@@ -1390,13 +1390,14 @@ function renderDetailTables(){
   };
 
   function getMediaData(rows){
-    const clicks=sum(rows,saClick)+sum(rows,gClick)+sum(rows,meClick);
-    const cost  =sum(rows,saCost) +sum(rows,gCost) +sum(rows,meCost);
-    const rev   =sum(rows,saRev)  +sum(rows,gRev)  +sum(rows,meRev);
-    const ord   =sum(rows,saOrd)  +sum(rows,gOrd);
-    const cartRev=sum(rows,saCartRev)+sum(rows,gCartRev);
-    const cartOrd=sum(rows,saCartOrd)+sum(rows,gCartOrd);
-    const imp   =sum(rows,'노출수');
+    // SA/GFA/META 모두 컬럼명 동일('클릭수','구매완료 매출액' 등)이므로 한 번만 합산
+    const clicks =sum(rows,'클릭수');
+    const cost   =sum(rows,'총비용(vat-)');
+    const rev    =sum(rows,'구매완료 매출액');
+    const ord    =sum(rows,'구매완료 전환수');
+    const cartRev=sum(rows,'장바구니 매출액');
+    const cartOrd=sum(rows,'장바구니 전환수');
+    const imp    =sum(rows,'노출수');
     return{
       cost,rev,clicks,ord,cartRev,cartOrd,
       roas :cost>0?pct(rev/cost):'—',
