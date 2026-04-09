@@ -1306,6 +1306,7 @@ function initDetailTableControls(){
       row.style.cssText='display:flex;align-items:center;gap:6px;padding:3px 4px;cursor:pointer;border-radius:4px;font-size:11px;color:var(--text)';
       row.onmouseover=()=>row.style.background='var(--bg)';
       row.onmouseout=()=>row.style.background='';
+      row.onclick=e=>e.stopPropagation();
       const cb=document.createElement('input');
       cb.type='checkbox';
       cb.checked=col.on;
@@ -1321,6 +1322,8 @@ function initDetailTableControls(){
         });
         renderDetailTables();
       };
+      // 체크박스/라벨 클릭 시 드롭박스 닫히지 않도록
+      cb.onclick=e=>e.stopPropagation();
       const lbl=document.createElement('span');
       lbl.textContent=col.label;
       row.appendChild(cb);
@@ -1331,9 +1334,11 @@ function initDetailTableControls(){
     btn.onclick=(e)=>{
       e.stopPropagation();
       const isOpen=dropdown.style.display==='block';
-      document.querySelectorAll('.detail-dropdown').forEach(d=>d.style.display='none');
+      // 다른 드롭박스만 닫기
+      document.querySelectorAll('.detail-dropdown').forEach(d=>{if(d!==dropdown)d.style.display='none';});
       dropdown.style.display=isOpen?'none':'block';
     };
+    dropdown.onclick=e=>e.stopPropagation();
     dropdown.className='detail-dropdown';
     wrap.appendChild(btn);
     wrap.appendChild(dropdown);
