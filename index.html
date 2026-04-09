@@ -855,9 +855,9 @@ function renderKpiBoard(){
      c3:EMPTY},
 
     // 3: ROAS·실질ROAS
-    {c1:{lbl:'매체 합계 — 광고비',
-         total:won(gfaCost+saCostT+meCostT),
-         sub:'광고비 (VAT-) · 매체 ROAS',
+    {c1:{lbl:'매체 합계 — ROAS',
+         total:(gfaCost+saCostT+meCostT)>0?pct((gfaRevT+saRevT+meRevT)/(gfaCost+saCostT+meCostT)):'—',
+         sub:`전체 광고비 ${won(gfaCost+saCostT+meCostT)} (VAT-)`,
          rows:[{l:'GFA ROAS',v:gfaCost>0?pct(gfaRevT/gfaCost):'—'},
                {l:'SA ROAS',v:(saCostT-bsaCost)>0?pct((saRevT-bsaRev)/(saCostT-bsaCost)):'—'},
                {l:'BSA ROAS',v:bsaCost>0?pct(bsaRev/bsaCost):'—'},
@@ -972,17 +972,17 @@ function renderCompChart(){
 
   // 탭별 매체 값 함수
   function mediaVal(rows, tab){
-    if(tab===0) return sum(rows,saClick)||sum(rows,gClick)||sum(rows,meClick);
-    if(tab===1) return sum(rows,saRev)||sum(rows,gRev)||sum(rows,meRev);
-    if(tab===2) return sum(rows,saCartRev)||sum(rows,gCartRev);
+    if(tab===0) return sum(rows,saClick)+sum(rows,gClick)+sum(rows,meClick);
+    if(tab===1) return sum(rows,saRev)+sum(rows,gRev)+sum(rows,meRev);
+    if(tab===2) return sum(rows,saCartRev)+sum(rows,gCartRev);
     if(tab===3){
-      const cost=sum(rows,saCost)||sum(rows,gCost)||sum(rows,meCost);
-      const rev=sum(rows,saRev)||sum(rows,gRev)||sum(rows,meRev);
+      const cost=sum(rows,saCost)+sum(rows,gCost)+sum(rows,meCost);
+      const rev=sum(rows,saRev)+sum(rows,gRev)+sum(rows,meRev);
       return cost>0?rev/cost*100:0;
     }
     if(tab===4){
-      const clicks=sum(rows,saClick)||sum(rows,gClick)||sum(rows,meClick);
-      const ords=sum(rows,saOrd)||sum(rows,gOrd);
+      const clicks=sum(rows,saClick)+sum(rows,gClick)+sum(rows,meClick);
+      const ords=sum(rows,saOrd)+sum(rows,gOrd);
       return clicks>0?ords/clicks*100:0;
     }
     return 0;
@@ -1369,12 +1369,12 @@ function renderDetailTables(){
   };
 
   function getMediaData(rows){
-    const clicks=sum(rows,saClick)||sum(rows,gClick)||sum(rows,meClick);
-    const cost  =sum(rows,saCost) ||sum(rows,gCost) ||sum(rows,meCost);
-    const rev   =sum(rows,saRev)  ||sum(rows,gRev)  ||sum(rows,meRev);
-    const ord   =sum(rows,saOrd)  ||sum(rows,gOrd);
-    const cartRev=sum(rows,saCartRev)||sum(rows,gCartRev);
-    const cartOrd=sum(rows,saCartOrd)||sum(rows,gCartOrd);
+    const clicks=sum(rows,saClick)+sum(rows,gClick)+sum(rows,meClick);
+    const cost  =sum(rows,saCost) +sum(rows,gCost) +sum(rows,meCost);
+    const rev   =sum(rows,saRev)  +sum(rows,gRev)  +sum(rows,meRev);
+    const ord   =sum(rows,saOrd)  +sum(rows,gOrd);
+    const cartRev=sum(rows,saCartRev)+sum(rows,gCartRev);
+    const cartOrd=sum(rows,saCartOrd)+sum(rows,gCartOrd);
     const imp   =sum(rows,'노출수');
     return{
       cost,rev,clicks,ord,cartRev,cartOrd,
