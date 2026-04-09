@@ -489,7 +489,7 @@ function renderDashboard(){
   const sale   =filterByDate(RAW.sale, slDateC, from, to);
 
   // ── SA 캠페인유형별 분리 ──────────────────────────────
-  const sa_shopping = saAll.filter(r=>nrm(r[saCampType])==='쇼핑검색광고');
+  const sa_shopping = saAll.filter(r=>nrm(r[saCampType])==='쇼핑검색');
   const sa_power    = saAll.filter(r=>nrm(r[saCampType])==='파워링크');
   const sa_brand    = saAll.filter(r=>nrm(r[saCampType]).includes('브랜드검색'));
   const sa_all      = saAll; // 전체 SA 합산용
@@ -965,7 +965,7 @@ function renderCompChart(){
 
   // 매체 데이터
   const sa_brand  =saAll.filter(r=>nrm(r[saCampType]).includes('브랜드검색'));
-  const sa_shop   =saAll.filter(r=>nrm(r[saCampType])==='쇼핑검색광고');
+  const sa_shop   =saAll.filter(r=>nrm(r[saCampType])==='쇼핑검색');
   const sa_power  =saAll.filter(r=>nrm(r[saCampType])==='파워링크');
   const gfa_perf  =gfaAll.filter(r=>!nrm(r[gCampName]).includes('ADVoost')&&!nrm(r[gAdGroup]).includes('올리브영'));
   const gfa_adv   =gfaAll.filter(r=>nrm(r[gCampName]).includes('ADVoost'));
@@ -1373,12 +1373,11 @@ function renderDetailTables(){
   const mkt    =filterByDate(RAW.mkt,  COLS.mkDateC,from,to);
 
   // 매체 세그먼트
-  console.log('[Detail] saAll rows:', saAll.length, 'saCampType col:', saCampType);
-  if(saAll[0]) console.log('[Detail] SA row0 campType:', saAll[0][saCampType], 'saRev val:', saAll[0][saRev]);
+
   const segs={
     gfa_perf:gfaAll.filter(r=>!nrm(r[gCampName]).includes('ADVoost')&&!nrm(r[gAdGroup]).includes('올리브영')),
     gfa_adv :gfaAll.filter(r=>nrm(r[gCampName]).includes('ADVoost')),
-    sa_shop :saAll.filter(r=>nrm(r[saCampType])==='쇼핑검색광고'),
+    sa_shop :saAll.filter(r=>nrm(r[saCampType])==='쇼핑검색'),
     sa_power:saAll.filter(r=>nrm(r[saCampType])==='파워링크'),
     sa_brand:saAll.filter(r=>nrm(r[saCampType]).includes('브랜드검색')),
     meta    :metaAll,
