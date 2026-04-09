@@ -999,8 +999,8 @@ function renderCompChart(){
     if(tab===2) return sum(rows,mkOrd);
     if(tab===3){
       const rev=useR14?(sum(rows,mkR14)||sum(rows,mkRl)):sum(rows,mkRl);
-      // ROAS: 매체 광고비 필요, 일단 스토어 매출만 표시
-      return rev/1000;
+      // 스토어 실질 ROAS - 매체 광고비는 MEDIA_MAP 대응으로 외부에서 처리
+      return rev;
     }
     if(tab===4){
       const in_=sum(rows,mkIn);
@@ -1018,6 +1018,16 @@ function renderCompChart(){
     'SA(파워링크)':   mediaVal(sa_power,  curTab),
     'BSA(브랜드검색)':mediaVal(sa_brand,  curTab),
     'META':           mediaVal(metaAll,   curTab),
+  };
+
+  // ROAS 탭에서 스토어 실질 ROAS 계산용 매체 광고비 맵
+  const mediaCostMap={
+    'GFA(성과형)':    sum(gfa_perf, gCost),
+    'GFA(ADVoost)':   sum(gfa_adv,  gCost),
+    'SA(쇼핑검색)':   sum(sa_shop,  saCost),
+    'SA(파워링크)':   sum(sa_power, saCost),
+    'BSA(브랜드검색)':sum(sa_brand, saCost),
+    'META':           sum(metaAll,  meCost),
   };
 
   // 스토어 전체 채널 목록 집계
@@ -1052,7 +1062,12 @@ function renderCompChart(){
 
   MEDIA_MAP.forEach(m=>{
     const mv=mediaVals[m.mediaLabel]||0;
-    const sv=storeVal(m.storeLabel, curTab);
+    let sv=storeVal(m.storeLabel, curTab);
+    // ROAS 탭: storeVal이 raw 매출 반환 → 매체 광고비로 나눠서 실질 ROAS(%)
+    if(curTab===3){
+      const mCost=mediaCostMap[m.mediaLabel]||0;
+      sv=mCost>0?sv/mCost*100:0;
+    }
     if(mv===0&&sv===0)return; // 둘 다 0이면 생략
     labels.push(m.mediaLabel);
     mediaDataset.push(mv);
@@ -1073,7 +1088,7 @@ function renderCompChart(){
   const isWon=curTab===1;
   const isPct=curTab===3||curTab===4;
   const fmtVal=v=>v===null?null:isWon?Math.round(v):isPct?parseFloat(v.toFixed(1)):Math.round(v);
-  const fmtTip=v=>v===null?'—':isWon?won(v):isPct?v.toFixed(1)+'%':Math.round(v).toLocaleString();
+  const fmtTip=v=>v===null?'—':isWon?won(v):curTab===3?v.toFixed(1)+'%':isPct?v.toFixed(1)+'%':Math.round(v).toLocaleString();
 
   if(compChart){compChart.destroy();compChart=null;}
   const ctx=document.getElementById('compChart');
@@ -1358,6 +1373,8 @@ function renderDetailTables(){
   const mkt    =filterByDate(RAW.mkt,  COLS.mkDateC,from,to);
 
   // 매체 세그먼트
+  console.log('[Detail] saAll rows:', saAll.length, 'saCampType col:', saCampType);
+  if(saAll[0]) console.log('[Detail] SA row0 campType:', saAll[0][saCampType], 'saRev val:', saAll[0][saRev]);
   const segs={
     gfa_perf:gfaAll.filter(r=>!nrm(r[gCampName]).includes('ADVoost')&&!nrm(r[gAdGroup]).includes('올리브영')),
     gfa_adv :gfaAll.filter(r=>nrm(r[gCampName]).includes('ADVoost')),
