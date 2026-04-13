@@ -918,25 +918,37 @@ function renderKpiBoard(){
       const pSaAll2=filterByDate(RAW.sa, saDateC, prev.from, prev.to);
       const pGfaAll2=filterByDate(RAW.gfa, gDateC, prev.from, prev.to);
       const pMetaAll2=filterByDate(RAW.meta, meDateC, prev.from, prev.to);
+      const pBsaRows=pSaAll2.filter(r=>nrm(r[saCampType]).includes('브랜드검색'));
+      const pGfaRev=sum(pGfaAll2,'구매완료 매출액');
+      const pSaRevT=sum(pSaAll2,'구매완료 매출액');
+      const pMeRevT=sum(pMetaAll2,'구매완료 매출액');
+      const pBsaRevVal=sum(pBsaRows,'구매완료 매출액');
+      const pBsaClicks=sum(pBsaRows,'클릭수');
       prevTabs = {
-        perfRev:pPerfRev, saRev:pSaRev, metaRev:pMetaRev, bsaRev:pBsaRev,
-        bsaRevM:useR14?(sum(pMkt.filter(r=>nrm(r[mkName]).includes('브랜드검색')),mkR14)||sum(pMkt.filter(r=>nrm(r[mkName]).includes('브랜드검색')),mkRl)):sum(pMkt.filter(r=>nrm(r[mkName]).includes('브랜드검색')),mkRl),
+        // 스토어 통계 기반
+        perfRev:pPerfRev, saRev:pSaRev, metaRev:pMetaRev,
+        bsaRevM:pBsaRev,
         total:pTotal, saleTotal:pSaleTotal,
         totalIn:sum(pMkt,mkIn),
         perfIn:sum(pMkt.filter(r=>nrm(r[mkName])==='네이버 성과형디스플레이광고'),mkIn),
         saIn:sum(pMkt.filter(r=>nrm(r[mkName])==='네이버 쇼핑검색광고'||nrm(r[mkName])==='네이버 사이트검색광고'),mkIn),
         bsaIn:sum(pMkt.filter(r=>nrm(r[mkName]).includes('브랜드검색')),mkIn),
         metaIn:sum(pMkt.filter(r=>nrm(r[mkName]).includes('사용자정의')),mkIn),
-        gfaRevT:sum(pGfaAll2,'구매완료 매출액'),
-        saRevT:sum(pSaAll2,'구매완료 매출액'),
-        meRevT:sum(pMetaAll2,'구매완료 매출액'),
-        bsaRev:sum(pSaAll2.filter(r=>nrm(r[saCampType]).includes('브랜드검색')),'구매완료 매출액'),
+        // 매체 데이터 기반
+        gfaRevT:pGfaRev,
+        saRevT:pSaRevT,
+        meRevT:pMeRevT,
+        bsaRev:pBsaRevVal,
+        mediaTotal:pGfaRev+pSaRevT+pMeRevT,
         gfaCartT:sum(pGfaAll2,'장바구니 매출액'),
         saCartT:sum(pSaAll2,'장바구니 매출액'),
-        bsaCart:sum(pSaAll2.filter(r=>nrm(r[saCampType]).includes('브랜드검색')),'장바구니 매출액'),
+        bsaCart:sum(pBsaRows,'장바구니 매출액'),
         totalCost:sum(pGfaAll2,'총비용(vat-)')+sum(pSaAll2,'총비용(vat-)')+sum(pMetaAll2,'총비용(vat-)'),
         totalClicks:sum(pGfaAll2,'클릭수')+sum(pSaAll2,'클릭수')+sum(pMetaAll2,'클릭수'),
-        mediaTotal:sum(pGfaAll2,'구매완료 매출액')+sum(pSaAll2,'구매완료 매출액')+sum(pMetaAll2,'구매완료 매출액'),
+        gfaClicks:sum(pGfaAll2,'클릭수'),
+        saClicks:sum(pSaAll2,'클릭수'),
+        meClicks:sum(pMetaAll2,'클릭수'),
+        bsaClicks:pBsaClicks,
       };
     }
   }
@@ -996,7 +1008,7 @@ function renderKpiBoard(){
     const pAttr=useR14?'14':'lc';
     const prevTabDefs=[
       // 0: 클릭수·유입수 - 이전 유입수
-      {c1:{_total:0,rows:[{_v:0},{_v:0},{_v:0},{_v:0}]},
+      {c1:{_total:(pT.gfaClicks||0)+(pT.saClicks||0)+(pT.meClicks||0)+(pT.bsaClicks||0),rows:[{_v:pT.gfaClicks||0},{_v:(pT.saClicks||0)-(pT.bsaClicks||0)},{_v:pT.bsaClicks||0},{_v:pT.meClicks||0}]},
        c2:{_total:pT.totalIn||0,rows:[{_v:pT.perfIn||0},{_v:pT.saIn||0},{_v:pT.bsaIn||0},{_v:pT.metaIn||0}]},
        c3:{_total:0,rows:[{_v:0},{_v:0},{_v:0},{_v:0}]}},
       // 1: 매출
@@ -1008,11 +1020,11 @@ function renderKpiBoard(){
        c2:{_total:0,rows:[{_v:0},{_v:0},{_v:0},{_v:0}]},
        c3:{_total:0,rows:[{_v:0},{_v:0},{_v:0},{_v:0}]}},
       // 3: ROAS
-      {c1:{_total:pT.totalCost||0,rows:[{_v:0},{_v:0},{_v:0},{_v:0}]},
+      {c1:{_total:pT.totalCost||0,rows:[{_v:pT.gfaClicks||0},{_v:pT.saClicks||0},{_v:pT.bsaClicks||0},{_v:pT.meClicks||0}]},
        c2:{_total:pT.perfRev||0,rows:[{_v:pT.perfRev||0},{_v:pT.saRev||0},{_v:pT.bsaRevM||0},{_v:pT.metaRev||0}]},
        c3:{_total:pT.saleTotal||0,rows:[{_v:pT.total||0},{_v:Math.max(0,(pT.saleTotal||0)-(pT.total||0))},{_v:0},{_v:0}]}},
       // 4: 전환율
-      {c1:{_total:pT.totalClicks||0,rows:[{_v:0},{_v:0},{_v:0},{_v:0}]},
+      {c1:{_total:pT.totalClicks||0,rows:[{_v:pT.gfaClicks||0},{_v:(pT.saClicks||0)-(pT.bsaClicks||0)},{_v:pT.bsaClicks||0},{_v:pT.meClicks||0}]},
        c2:{_total:pT.totalIn||0,rows:[{_v:pT.perfIn||0},{_v:pT.saIn||0},{_v:pT.bsaIn||0},{_v:pT.metaIn||0}]},
        c3:{_total:pT.saleTotal||0,rows:[{_v:pT.total||0},{_v:0},{_v:0},{_v:0}]}},
     ];
