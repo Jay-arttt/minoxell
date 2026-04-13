@@ -811,40 +811,45 @@ function renderKpiBoard(){
     // 0: 클릭수·유입수
     {c1:{lbl:'매체 합계 — 클릭수',
          total:Math.round(gfaClicks+saClicks+meClicks+bsaClicks).toLocaleString(),
+         _total:gfaClicks+saClicks+meClicks+bsaClicks,
          sub:'전체 매체 클릭수',
-         rows:[{l:'GFA',v:Math.round(gfaClicks).toLocaleString()},
-               {l:'SA(검색/쇼핑)',v:Math.round(saClicks-bsaClicks).toLocaleString()},
-               {l:'BSA(브랜드검색)',v:Math.round(bsaClicks).toLocaleString()},
-               {l:'META',v:Math.round(meClicks).toLocaleString()}]},
+         rows:[{l:'GFA',v:Math.round(gfaClicks).toLocaleString(),_v:gfaClicks},
+               {l:'SA(검색/쇼핑)',v:Math.round(saClicks-bsaClicks).toLocaleString(),_v:saClicks-bsaClicks},
+               {l:'BSA(브랜드검색)',v:Math.round(bsaClicks).toLocaleString(),_v:bsaClicks},
+               {l:'META',v:Math.round(meClicks).toLocaleString(),_v:meClicks}]},
      c2:{lbl:'스토어 통계 — 유입수 합계',
          total:Math.round(mktTotalIn).toLocaleString(),
+         _total:mktTotalIn,
          sub:'마케팅전체 채널 유입수',
-         rows:[{l:'GFA(성과형)',v:Math.round(perfIn).toLocaleString()},
-               {l:'SA(검색/쇼핑)',v:Math.round(saIn).toLocaleString()},
-               {l:'BSA(브랜드검색)',v:Math.round(bsaIn).toLocaleString()},
-               {l:'META(사용자정의)',v:Math.round(metaIn).toLocaleString()}]},
+         rows:[{l:'GFA(성과형)',v:Math.round(perfIn).toLocaleString(),_v:perfIn},
+               {l:'SA(검색/쇼핑)',v:Math.round(saIn).toLocaleString(),_v:saIn},
+               {l:'BSA(브랜드검색)',v:Math.round(bsaIn).toLocaleString(),_v:bsaIn},
+               {l:'META(사용자정의)',v:Math.round(metaIn).toLocaleString(),_v:metaIn}]},
      c3:EMPTY},
 
     // 1: 매출
     {c1:{lbl:'매체 합계 — 구매완료 매출',
          total:won(gfaRevT+saRevT+meRevT),
+         _total:gfaRevT+saRevT+meRevT,
          sub:'각 매체 구매완료 매출액 합계',
-         rows:[{l:'GFA',v:won(gfaRevT)},
-               {l:'SA(검색/쇼핑)',v:won(saRevT-bsaRev)},
-               {l:'BSA(브랜드검색)',v:won(bsaRev)},
-               {l:'META',v:won(meRevT)}]},
+         rows:[{l:'GFA',v:won(gfaRevT),_v:gfaRevT},
+               {l:'SA(검색/쇼핑)',v:won(saRevT-bsaRev),_v:saRevT-bsaRev},
+               {l:'BSA(브랜드검색)',v:won(bsaRev),_v:bsaRev},
+               {l:'META',v:won(meRevT),_v:meRevT}]},
      c2:{lbl:`스토어 통계 — 결제금액 (${attrLabel})`,
          total:won(mktTotalRev),
+         _total:mktTotalRev,
          sub:`마케팅전체 결제금액 (${attrLabel})`,
-         rows:[{l:'GFA(성과형)',v:won(perfRev)},
-               {l:'SA(검색/쇼핑)',v:won(saRevMkt)},
-               {l:'BSA(브랜드검색)',v:won(bsaRevMkt)},
-               {l:'META(사용자정의)',v:won(metaRevMkt)}]},
+         rows:[{l:'GFA(성과형)',v:won(perfRev),_v:perfRev},
+               {l:'SA(검색/쇼핑)',v:won(saRevMkt),_v:saRevMkt},
+               {l:'BSA(브랜드검색)',v:won(bsaRevMkt),_v:bsaRevMkt},
+               {l:'META(사용자정의)',v:won(metaRevMkt),_v:metaRevMkt}]},
      c3:{lbl:'스토어 통계 — 판매성과',
          total:won(saleTotal),
+         _total:saleTotal,
          sub:'전체 결제금액 (미추적 포함)',
-         rows:[{l:'마케팅분석 합계',v:won(mktTotalRev)},
-               {l:'미추적 매출 추정',v:won(unmkt)},
+         rows:[{l:'마케팅분석 합계',v:won(mktTotalRev),_v:mktTotalRev},
+               {l:'미추적 매출 추정',v:won(unmkt),_v:unmkt},
                {l:'미추적 비중',v:pct(saleTotal>0?unmkt/saleTotal:0)},
                {l:'',v:''}]}},
 
@@ -960,7 +965,11 @@ function renderKpiBoard(){
     kb.querySelector('.kb-label').textContent=card.lbl;
     const valEl=kb.querySelector('.kb-val');
     if(valEl){
-      valEl.innerHTML=prevCard?fmtCmp(card._total||0,prevCard._total||0,v=>card.total):card.total;
+      if(prevCard&&prevCard._total!==undefined){
+        valEl.innerHTML=fmtCmp(card._total||0,prevCard._total||0,v=>card.total);
+      } else {
+        valEl.textContent=card.total;
+      }
       if(valEl.nextElementSibling)valEl.nextElementSibling.textContent=card.sub;
     }
     kb.querySelectorAll('.kb-row').forEach((row,i)=>{
@@ -968,9 +977,13 @@ function renderKpiBoard(){
       const lbl=row.querySelector('.kb-row-label');
       const val=row.querySelector('.kb-row-val');
       if(lbl)lbl.textContent=card.rows[i].l;
-      if(val)val.innerHTML=prevCard&&prevCard.rows[i]?
-        fmtCmp(card.rows[i]._v||0, prevCard.rows[i]._v||0, v=>card.rows[i].v):
-        card.rows[i].v;
+      if(val){
+        if(prevCard&&prevCard.rows[i]&&prevCard.rows[i]._v!==undefined&&card.rows[i]._v!==undefined){
+          val.innerHTML=fmtCmp(card.rows[i]._v, prevCard.rows[i]._v, v=>card.rows[i].v);
+        } else {
+          val.textContent=card.rows[i].v;
+        }
+      }
     });
     kb.style.opacity = card.lbl ? '1' : '0.35';
     kb.style.pointerEvents = card.lbl ? '' : 'none';
