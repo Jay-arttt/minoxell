@@ -247,7 +247,9 @@ tr:hover td{background:var(--bg)}
   <div class="panel" style="margin-bottom:1rem">
     <div class="ph">
       <div class="tt" style="font-size:13px;font-weight:700">스마트스토어 통계 — 채널명별 현황</div>
-      <select id="ch-metric" onchange="renderChChart()" style="font-size:12px;padding:4px 10px;border-radius:6px;border:1px solid var(--border-m);background:var(--surface);color:var(--text);font-family:inherit;cursor:pointer">
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="ppill" id="ch-cmp-btn" onclick="toggleCompare('ch')" style="font-size:11px">이전 동기간 비교 OFF</button>
+        <select id="ch-metric" onchange="renderChChart()" style="font-size:12px;padding:4px 10px;border-radius:6px;border:1px solid var(--border-m);background:var(--surface);color:var(--text);font-family:inherit;cursor:pointer">
         <option value="cust">고객수</option>
         <option value="in">유입수</option>
         <option value="ord_lc">결제수 (마지막클릭)</option>
@@ -255,6 +257,7 @@ tr:hover td{background:var(--bg)}
         <option value="ord_14">결제수 (+14일 기여도)</option>
         <option value="rev_14">결제금액 (+14일 기여도)</option>
       </select>
+      </div>
     </div>
     <div style="position:relative;width:100%;height:280px"><canvas id="chChart"></canvas></div>
     <div class="leg" id="ch-leg" style="margin-top:.75rem"></div>
@@ -265,6 +268,8 @@ tr:hover td{background:var(--bg)}
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:1rem">
       <div class="tt">매체 vs 스토어 통계 — 상세 비교</div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <button class="ppill" id="detail-cmp-btn" onclick="toggleCompare('detail')" style="font-size:11px">이전 동기간 비교 OFF</button>
+        <div style="width:1px;height:18px;background:var(--border-m)"></div>
         <!-- 빠른 선택 버튼 -->
         <div style="display:flex;gap:5px">
           <button class="ppill on" id="qbtn-buy" style="font-size:11px" onclick="quickSelect('buy')">구매 관련</button>
@@ -892,27 +897,63 @@ function renderKpiBoard(){
   const d=tabs[curTab]||tabs[1];
 
   // 카드 업데이트 헬퍼
-  function updateCard(nth, card){
+  // 이전 동기간 KPI 계산
+  let prevTabs = null;
+  if(compareState.kpi){
+    const prev = getPrevData(from, to);
+    if(prev){
+      const pMkt = filterByDate(RAW.mkt, mkDateC, prev.from, prev.to);
+      const pSale = filterByDate(RAW.sale, slDateC, prev.from, prev.to);
+      const pPerfRev = useR14?(sum(pMkt.filter(r=>nrm(r[mkName])==='네이버 성과형디스플레이광고'),mkR14)||sum(pMkt.filter(r=>nrm(r[mkName])==='네이버 성과형디스플레이광고'),mkRl)):sum(pMkt.filter(r=>nrm(r[mkName])==='네이버 성과형디스플레이광고'),mkRl);
+      const pSaRev = useR14?(sum(pMkt.filter(r=>nrm(r[mkName])==='네이버 쇼핑검색광고'||nrm(r[mkName])==='네이버 사이트검색광고'),mkR14)||sum(pMkt.filter(r=>nrm(r[mkName])==='네이버 쇼핑검색광고'||nrm(r[mkName])==='네이버 사이트검색광고'),mkRl)):sum(pMkt.filter(r=>nrm(r[mkName])==='네이버 쇼핑검색광고'||nrm(r[mkName])==='네이버 사이트검색광고'),mkRl);
+      const pMetaRev = useR14?(sum(pMkt.filter(r=>nrm(r[mkName]).includes('사용자정의')),mkR14)||sum(pMkt.filter(r=>nrm(r[mkName]).includes('사용자정의')),mkRl)):sum(pMkt.filter(r=>nrm(r[mkName]).includes('사용자정의')),mkRl);
+      const pBsaRev = useR14?(sum(pMkt.filter(r=>nrm(r[mkName]).includes('브랜드검색')),mkR14)||sum(pMkt.filter(r=>nrm(r[mkName]).includes('브랜드검색')),mkRl)):sum(pMkt.filter(r=>nrm(r[mkName]).includes('브랜드검색')),mkRl);
+      const pTotal = useR14?(sum(pMkt,mkR14)||sum(pMkt,mkRl)):sum(pMkt,mkRl);
+      const pSaleTotal = sum(pSale, slRev);
+      prevTabs = { perfRev:pPerfRev, saRev:pSaRev, metaRev:pMetaRev, bsaRev:pBsaRev, total:pTotal, saleTotal:pSaleTotal };
+    }
+  }
+
+  function fmtCmp(cur, prev, fmtFn){
+    if(!compareState.kpi||prev===undefined||prev===null) return fmtFn(cur);
+    const diff=cur-prev;
+    const pct=prev!==0?(diff/Math.abs(prev)*100).toFixed(1)+'%':'—';
+    const color=diff>0?'var(--green)':diff<0?'var(--red)':'var(--t2)';
+    const arrow=diff>0?'▲':diff<0?'▼':'';
+    return `${fmtFn(cur)} <span style="font-size:10px;color:${color}">${arrow}${pct}</span>`;
+  }
+
+  function updateCard(nth, card, prevCard){
     const kb=document.querySelector(`#kpi-board .kb:nth-child(${nth})`);
     if(!kb)return;
     kb.querySelector('.kb-label').textContent=card.lbl;
     const valEl=kb.querySelector('.kb-val');
-    if(valEl){valEl.textContent=card.total; if(valEl.nextElementSibling)valEl.nextElementSibling.textContent=card.sub;}
+    if(valEl){
+      valEl.innerHTML=compareState.kpi&&prevCard?fmtCmp(card._total||0,prevCard._total||0,v=>card.total):card.total;
+      if(valEl.nextElementSibling)valEl.nextElementSibling.textContent=card.sub;
+    }
     kb.querySelectorAll('.kb-row').forEach((row,i)=>{
       if(!card.rows[i])return;
       const lbl=row.querySelector('.kb-row-label');
       const val=row.querySelector('.kb-row-val');
       if(lbl)lbl.textContent=card.rows[i].l;
-      if(val)val.textContent=card.rows[i].v;
+      if(val)val.innerHTML=compareState.kpi&&prevCard&&prevCard.rows[i]?
+        fmtCmp(card.rows[i]._v||0, prevCard.rows[i]._v||0, v=>card.rows[i].v):
+        card.rows[i].v;
     });
-    // 카드3 비어있으면 숨김
     kb.style.opacity = card.lbl ? '1' : '0.35';
     kb.style.pointerEvents = card.lbl ? '' : 'none';
   }
 
-  updateCard(1, d.c1);
-  updateCard(2, d.c2);
-  updateCard(3, d.c3);
+  updateCard(1, d.c1, null);
+  updateCard(2, d.c2, null);
+  updateCard(3, d.c3, null);
+
+  // 동기간 비교 표시
+  if(compareState.kpi && prevTabs){
+    const prevLabel = `이전 동기간 비교 ON`;
+    const kpiNote = document.getElementById('kpi-tab-label');
+  }
 
   // 별도 id 참조 업데이트 (하위 호환)
   if($('kb-media-total'))$('kb-media-total').textContent=d.c1.total;
@@ -924,6 +965,36 @@ function renderKpiBoard(){
   const tabLabels=['클릭수·유입수','매출','장바구니 매출','ROAS·실질ROAS','전환율·결제율'];
   const lbl=$('kpi-tab-label');
   if(lbl)lbl.textContent='현재 탭: '+tabLabels[curTab];
+}
+
+// ── 동기간 비교 상태 관리 ─────────────────────────────────────
+const compareState = { ch: false, kpi: false, detail: false };
+
+function toggleCompare(section){
+  compareState[section] = !compareState[section];
+  const btn = document.getElementById(section+'-cmp-btn');
+  if(btn){
+    btn.textContent = '이전 동기간 비교 ' + (compareState[section] ? 'ON' : 'OFF');
+    btn.classList.toggle('on', compareState[section]);
+  }
+  if(section==='ch')     renderChChart();
+  if(section==='kpi')    renderKpiBoard();
+  if(section==='detail') renderDetailTables();
+}
+
+function getPrevData(from, to){
+  if(!from||!to) return null;
+  return shiftDateRange(from, to, -1);
+}
+
+// 비교 행 생성 헬퍼 (현재값, 이전값, 포맷 함수)
+function makeCmpCell(cur, prev, fmtFn){
+  if(prev===null||prev===undefined) return fmtFn(cur);
+  const diff = cur - prev;
+  const diffPct = prev!==0 ? (diff/Math.abs(prev)*100).toFixed(1) : '—';
+  const color = diff>0?'var(--green)':diff<0?'var(--red)':'var(--t2)';
+  const arrow = diff>0?'▲':diff<0?'▼':'';
+  return fmtFn(cur)+`<br><span style="font-size:9px;color:${color}">${arrow}${diffPct!=='—'?diffPct+'%':''} vs 이전</span>`;
 }
 
 let chChart = null;
@@ -1946,11 +2017,56 @@ function renderChChart(){
     }
   });
 
+  // 이전 동기간 비교
+  let prevDatasets = [];
+  if(compareState.ch){
+    const prev = getPrevData(from, to);
+    if(prev){
+      const prevMkt = filterByDate(RAW.mkt, COLS.mkDateC, prev.from, prev.to);
+      const prevMap = {};
+      prevMkt.forEach(r=>{
+        const ch=nrm(r[mkName]); if(!ch)return;
+        if(!prevMap[ch])prevMap[ch]=0;
+        if(metric==='cust')prevMap[ch]+=num(r[COLS.mkCust]);
+        else if(metric==='in')prevMap[ch]+=num(r[COLS.mkIn]);
+        else if(metric==='ord_lc')prevMap[ch]+=num(r[COLS.mkOrd]);
+        else if(metric==='rev_lc')prevMap[ch]+=num(r[COLS.mkRl]);
+        else if(metric==='ord_14'){const c=Object.keys(RAW.mkt[0]||{}).find(k=>k.includes('결제수')&&k.includes('14'));prevMap[ch]+=c?num(r[c]):0;}
+        else if(metric==='rev_14'){const c=Object.keys(RAW.mkt[0]||{}).find(k=>k.includes('결제금액')&&k.includes('14'));prevMap[ch]+=c?num(r[c]):0;}
+      });
+      prevDatasets = [{
+        label: '이전 동기간',
+        data: labels.map(l=>prevMap[l]||0),
+        backgroundColor: colors.map(c=>c+'55'),
+        borderRadius: 4,
+      }];
+    }
+  }
+
+  if(chChart){chChart.destroy();chChart=null;}
+  const ctx2=document.getElementById('chChart');
+  if(!ctx2)return;
+  chChart=new Chart(ctx2,{
+    type:'bar',
+    data:{labels, datasets:[{label:'현재 기간', data, backgroundColor:colors, borderRadius:4}, ...prevDatasets]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{
+        const v=c.raw; return c.dataset.label+': '+(isWon?won(v):Math.round(v).toLocaleString());
+      }}}},
+      scales:{x:{ticks:{font:{size:10},maxRotation:30,autoSkip:false},grid:{display:false}},
+        y:{ticks:{font:{size:10},callback:v=>isWon?'₩'+Math.round(v/1000)+'K':Math.round(v).toLocaleString()},grid:{color:'rgba(0,0,0,0.05)'}}}
+    }
+  });
+
   // 범례
   const leg=document.getElementById('ch-leg');
-  if(leg)leg.innerHTML=labels.slice(0,10).map((l,i)=>`<span class="li"><span class="ls" style="background:${colors[i]}"></span>${l}</span>`).join('');
+  if(leg){
+    let legHtml = labels.slice(0,10).map((l,i)=>`<span class="li"><span class="ls" style="background:${colors[i]}"></span>${l}</span>`).join('');
+    if(compareState.ch) legHtml += `<span class="li"><span class="ls" style="background:rgba(24,95,165,0.3)"></span>이전 동기간</span>`;
+    leg.innerHTML = legHtml;
+  }
   const note=document.getElementById('ch-note');
-  if(note)note.textContent=`* ${metricLabels[metric]} 기준 채널명별 합산 / ${from||'전체'} ~ ${to||'전체'} / ${isWon?'단위: 원':'단위: 건'}`;
+  if(note)note.textContent=`* ${metricLabels[metric]} 기준 채널명별 합산 / ${from||'전체'} ~ ${to||'전체'}${compareState.ch?' / 이전 동기간 비교 ON':''}`;
 }
 
 async function loadAll(){
