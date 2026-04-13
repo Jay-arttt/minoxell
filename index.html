@@ -899,7 +899,7 @@ function renderKpiBoard(){
   // 카드 업데이트 헬퍼
   // 이전 동기간 KPI 계산
   let prevTabs = null;
-  if(compareState.kpi){
+  {  // 항상 이전 동기간 비교 표시
     const prev = getPrevData(from, to);
     if(prev){
       const pMkt = filterByDate(RAW.mkt, mkDateC, prev.from, prev.to);
@@ -915,7 +915,7 @@ function renderKpiBoard(){
   }
 
   function fmtCmp(cur, prev, fmtFn){
-    if(!compareState.kpi||prev===undefined||prev===null) return fmtFn(cur);
+    if(prev===undefined||prev===null) return fmtFn(cur);
     const diff=cur-prev;
     const pct=prev!==0?(diff/Math.abs(prev)*100).toFixed(1)+'%':'—';
     const color=diff>0?'var(--green)':diff<0?'var(--red)':'var(--t2)';
@@ -929,7 +929,7 @@ function renderKpiBoard(){
     kb.querySelector('.kb-label').textContent=card.lbl;
     const valEl=kb.querySelector('.kb-val');
     if(valEl){
-      valEl.innerHTML=compareState.kpi&&prevCard?fmtCmp(card._total||0,prevCard._total||0,v=>card.total):card.total;
+      valEl.innerHTML=prevCard?fmtCmp(card._total||0,prevCard._total||0,v=>card.total):card.total;
       if(valEl.nextElementSibling)valEl.nextElementSibling.textContent=card.sub;
     }
     kb.querySelectorAll('.kb-row').forEach((row,i)=>{
@@ -937,7 +937,7 @@ function renderKpiBoard(){
       const lbl=row.querySelector('.kb-row-label');
       const val=row.querySelector('.kb-row-val');
       if(lbl)lbl.textContent=card.rows[i].l;
-      if(val)val.innerHTML=compareState.kpi&&prevCard&&prevCard.rows[i]?
+      if(val)val.innerHTML=prevCard&&prevCard.rows[i]?
         fmtCmp(card.rows[i]._v||0, prevCard.rows[i]._v||0, v=>card.rows[i].v):
         card.rows[i].v;
     });
@@ -950,10 +950,7 @@ function renderKpiBoard(){
   updateCard(3, d.c3, null);
 
   // 동기간 비교 표시
-  if(compareState.kpi && prevTabs){
-    const prevLabel = `이전 동기간 비교 ON`;
-    const kpiNote = document.getElementById('kpi-tab-label');
-  }
+
 
   // 별도 id 참조 업데이트 (하위 호환)
   if($('kb-media-total'))$('kb-media-total').textContent=d.c1.total;
@@ -1593,6 +1590,56 @@ function renderDetailTables(){
     activeMC.map((c,i)=>`<td style="text-align:right${i===mLen-1?';border-right:2px solid var(--border-m)':''}">` +totalMFmt[c.key]+'</td>').join('')+
     activeSC.map(c=>`<td style="text-align:right">${totalSData[c.key]||'—'}</td>`).join('')+
     '</tr>';
+
+  // ── 이전 동기간 비교 (detail) ──────────────────────────────
+  if(compareState.detail){
+    const prev=getPrevData(from,to);
+    if(prev){
+      const pSaAll  =filterByDate(RAW.sa,  saDateC, prev.from,prev.to);
+      const pGfaAll =filterByDate(RAW.gfa, gDateC,  prev.from,prev.to);
+      const pMetaAll=filterByDate(RAW.meta,meDateC, prev.from,prev.to);
+      const pMkt    =filterByDate(RAW.mkt, mkDateC, prev.from,prev.to);
+      const pSegs={
+        gfa_perf:pGfaAll.filter(r=>!nrm(r[gCampName]).includes('ADVoost')&&!nrm(r[gAdGroup]).includes('올리브영')),
+        gfa_adv :pGfaAll.filter(r=>nrm(r[gCampName]).includes('ADVoost')),
+        sa_shop :pSaAll.filter(r=>nrm(r[saCampType])==='쇼핑검색'),
+        sa_power:pSaAll.filter(r=>nrm(r[saCampType])==='파워링크'),
+        sa_brand:pSaAll.filter(r=>nrm(r[saCampType]).includes('브랜드검색')),
+        meta    :pMetaAll,
+        total   :[...pGfaAll,...pSaAll,...pMetaAll],
+      };
+      const pMktByName={};
+      pMkt.forEach(r=>{const ch=nrm(r[mkName]);if(!ch)return;if(!pMktByName[ch])pMktByName[ch]=[];pMktByName[ch].push(r);});
+
+      // 이전 구간 구분선
+      tbodyRows+=`<tr><td colspan="${2+mLen+sLen}" style="padding:5px 8px;font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;background:var(--bg);border-top:2px dashed var(--border-m)">이전 동기간 (${prev.from} ~ ${prev.to})</td></tr>`;
+
+      // 대응 채널 이전 데이터
+      MATCH_ROWS.forEach(row=>{
+        const pmd=getMediaData(pSegs[row.mediaType]||[]);
+        const pStoreKey=Object.keys(pMktByName).find(k=>k===row.storeLabel||k.includes(row.storeLabel)||row.storeLabel.includes(k));
+        const psd=getStoreData(pStoreKey?pMktByName[pStoreKey]:[],pmd.cost);
+        const pmf={cost:won(pmd.cost),rev:won(pmd.rev),roas:pmd.roas,cvr:pmd.cvr,ord:Math.round(pmd.ord).toLocaleString(),cartRev:won(pmd.cartRev),cartOrd:Math.round(pmd.cartOrd).toLocaleString(),clicks:Math.round(pmd.clicks).toLocaleString(),cpc:pmd.cpc,cpm:pmd.cpm};
+        tbodyRows+='<tr style="opacity:.65">'+
+          `<td style="text-align:left;font-size:10px;color:var(--t2)"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${row.mediaColor};margin-right:4px;vertical-align:middle;opacity:.4"></span>${row.mediaLabel}</td>`+
+          `<td style="text-align:left;color:var(--t3);border-right:2px solid var(--border-m);font-size:10px">${pStoreKey||row.storeLabel}</td>`+
+          activeMC.map((c,i)=>`<td style="text-align:right;font-size:10px;color:var(--t2)${i===mLen-1?';border-right:2px solid var(--border-m)':''}">${pmf[c.key]||'—'}</td>`).join('')+
+          activeSC.map(c=>`<td style="text-align:right;font-size:10px;color:var(--t2)">${psd[c.key]||'—'}</td>`).join('')+
+          '</tr>';
+      });
+
+      // 이전 합계
+      const ptmd=getMediaData(pSegs.total||[]);
+      const ptsd=getStoreData(Object.values(pMktByName).flat(),null);
+      const ptmf={cost:won(ptmd.cost),rev:won(ptmd.rev),roas:ptmd.roas,cvr:ptmd.cvr,ord:Math.round(ptmd.ord).toLocaleString(),cartRev:won(ptmd.cartRev),cartOrd:Math.round(ptmd.cartOrd).toLocaleString(),clicks:Math.round(ptmd.clicks).toLocaleString(),cpc:ptmd.cpc,cpm:ptmd.cpm};
+      tbodyRows+='<tr style="font-weight:700;opacity:.65;border-top:1px solid var(--border-m)">'+
+        `<td style="text-align:left;font-size:10px;color:var(--t2)">이전 합계</td>`+
+        `<td style="text-align:left;border-right:2px solid var(--border-m);font-size:10px;color:var(--t2)">전체</td>`+
+        activeMC.map((c,i)=>`<td style="text-align:right;font-size:10px;color:var(--t2)${i===mLen-1?';border-right:2px solid var(--border-m)':''}">${ptmf[c.key]||'—'}</td>`).join('')+
+        activeSC.map(c=>`<td style="text-align:right;font-size:10px;color:var(--t2)">${ptsd[c.key]||'—'}</td>`).join('')+
+        '</tr>';
+    }
+  }
 
   const tbl=document.getElementById('detail-combined-table');
   if(tbl) tbl.innerHTML=thead+'<tbody>'+tbodyRows+'</tbody>';
