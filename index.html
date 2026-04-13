@@ -910,17 +910,48 @@ function renderKpiBoard(){
       const pBsaRev = useR14?(sum(pMkt.filter(r=>nrm(r[mkName]).includes('브랜드검색')),mkR14)||sum(pMkt.filter(r=>nrm(r[mkName]).includes('브랜드검색')),mkRl)):sum(pMkt.filter(r=>nrm(r[mkName]).includes('브랜드검색')),mkRl);
       const pTotal = useR14?(sum(pMkt,mkR14)||sum(pMkt,mkRl)):sum(pMkt,mkRl);
       const pSaleTotal = sum(pSale, slRev);
-      prevTabs = { perfRev:pPerfRev, saRev:pSaRev, metaRev:pMetaRev, bsaRev:pBsaRev, total:pTotal, saleTotal:pSaleTotal };
+      const pSaAll2=filterByDate(RAW.sa, saDateC, prev.from, prev.to);
+      const pGfaAll2=filterByDate(RAW.gfa, gDateC, prev.from, prev.to);
+      const pMetaAll2=filterByDate(RAW.meta, meDateC, prev.from, prev.to);
+      prevTabs = {
+        perfRev:pPerfRev, saRev:pSaRev, metaRev:pMetaRev, bsaRev:pBsaRev,
+        bsaRevM:useR14?(sum(pMkt.filter(r=>nrm(r[mkName]).includes('브랜드검색')),mkR14)||sum(pMkt.filter(r=>nrm(r[mkName]).includes('브랜드검색')),mkRl)):sum(pMkt.filter(r=>nrm(r[mkName]).includes('브랜드검색')),mkRl),
+        total:pTotal, saleTotal:pSaleTotal,
+        totalIn:sum(pMkt,mkIn),
+        perfIn:sum(pMkt.filter(r=>nrm(r[mkName])==='네이버 성과형디스플레이광고'),mkIn),
+        saIn:sum(pMkt.filter(r=>nrm(r[mkName])==='네이버 쇼핑검색광고'||nrm(r[mkName])==='네이버 사이트검색광고'),mkIn),
+        bsaIn:sum(pMkt.filter(r=>nrm(r[mkName]).includes('브랜드검색')),mkIn),
+        metaIn:sum(pMkt.filter(r=>nrm(r[mkName]).includes('사용자정의')),mkIn),
+        gfaRevT:sum(pGfaAll2,'구매완료 매출액'),
+        saRevT:sum(pSaAll2,'구매완료 매출액'),
+        meRevT:sum(pMetaAll2,'구매완료 매출액'),
+        bsaRev:sum(pSaAll2.filter(r=>nrm(r[saCampType]).includes('브랜드검색')),'구매완료 매출액'),
+        gfaCartT:sum(pGfaAll2,'장바구니 매출액'),
+        saCartT:sum(pSaAll2,'장바구니 매출액'),
+        bsaCart:sum(pSaAll2.filter(r=>nrm(r[saCampType]).includes('브랜드검색')),'장바구니 매출액'),
+        totalCost:sum(pGfaAll2,'총비용(vat-)')+sum(pSaAll2,'총비용(vat-)')+sum(pMetaAll2,'총비용(vat-)'),
+        totalClicks:sum(pGfaAll2,'클릭수')+sum(pSaAll2,'클릭수')+sum(pMetaAll2,'클릭수'),
+        mediaTotal:sum(pGfaAll2,'구매완료 매출액')+sum(pSaAll2,'구매완료 매출액')+sum(pMetaAll2,'구매완료 매출액'),
+      };
     }
   }
 
   function fmtCmp(cur, prev, fmtFn){
     if(prev===undefined||prev===null) return fmtFn(cur);
     const diff=cur-prev;
-    const pct=prev!==0?(diff/Math.abs(prev)*100).toFixed(1)+'%':'—';
     const color=diff>0?'var(--green)':diff<0?'var(--red)':'var(--t2)';
     const arrow=diff>0?'▲':diff<0?'▼':'';
-    return `${fmtFn(cur)} <span style="font-size:10px;color:${color}">${arrow}${pct}</span>`;
+    // 단위 자동 감지: % 포함이면 %p, ₩ 포함이면 금액, 그외 정수
+    const curStr=fmtFn(cur);
+    let diffStr;
+    if(curStr.includes('%')){
+      diffStr=(diff>0?'+':'')+diff.toFixed(1)+'%p';
+    } else if(curStr.includes('₩')||curStr.includes('원')){
+      diffStr=(diff>=0?'+':'')+won(diff);
+    } else {
+      diffStr=(diff>=0?'+':'')+Math.round(diff).toLocaleString();
+    }
+    return `${curStr} <span style="font-size:10px;color:${color}">${arrow}${diffStr}</span>`;
   }
 
   function updateCard(nth, card, prevCard){
@@ -945,11 +976,39 @@ function renderKpiBoard(){
     kb.style.pointerEvents = card.lbl ? '' : 'none';
   }
 
-  updateCard(1, d.c1, null);
-  updateCard(2, d.c2, null);
-  updateCard(3, d.c3, null);
+  // 이전 동기간 카드 구성
+  let prevD = null;
+  if(prevTabs){
+    const pT=prevTabs;
+    const pAttr=useR14?'14':'lc';
+    const prevTabDefs=[
+      // 0: 클릭수·유입수 - 이전 유입수
+      {c1:{_total:0,rows:[{_v:0},{_v:0},{_v:0},{_v:0}]},
+       c2:{_total:pT.totalIn||0,rows:[{_v:pT.perfIn||0},{_v:pT.saIn||0},{_v:pT.bsaIn||0},{_v:pT.metaIn||0}]},
+       c3:{_total:0,rows:[{_v:0},{_v:0},{_v:0},{_v:0}]}},
+      // 1: 매출
+      {c1:{_total:pT.mediaTotal||0,rows:[{_v:pT.gfaRevT||0},{_v:(pT.saRevT||0)-(pT.bsaRev||0)},{_v:pT.bsaRev||0},{_v:pT.meRevT||0}]},
+       c2:{_total:pT.total||0,rows:[{_v:pT.perfRev||0},{_v:pT.saRev||0},{_v:pT.bsaRevM||0},{_v:pT.metaRev||0}]},
+       c3:{_total:pT.saleTotal||0,rows:[{_v:pT.total||0},{_v:Math.max(0,(pT.saleTotal||0)-(pT.total||0))},{_v:0},{_v:0}]}},
+      // 2: 장바구니
+      {c1:{_total:pT.gfaCartT||0,rows:[{_v:pT.gfaCartT||0},{_v:(pT.saCartT||0)-(pT.bsaCart||0)},{_v:pT.bsaCart||0},{_v:0}]},
+       c2:{_total:0,rows:[{_v:0},{_v:0},{_v:0},{_v:0}]},
+       c3:{_total:0,rows:[{_v:0},{_v:0},{_v:0},{_v:0}]}},
+      // 3: ROAS
+      {c1:{_total:pT.totalCost||0,rows:[{_v:0},{_v:0},{_v:0},{_v:0}]},
+       c2:{_total:pT.perfRev||0,rows:[{_v:pT.perfRev||0},{_v:pT.saRev||0},{_v:pT.bsaRevM||0},{_v:pT.metaRev||0}]},
+       c3:{_total:pT.saleTotal||0,rows:[{_v:pT.total||0},{_v:Math.max(0,(pT.saleTotal||0)-(pT.total||0))},{_v:0},{_v:0}]}},
+      // 4: 전환율
+      {c1:{_total:pT.totalClicks||0,rows:[{_v:0},{_v:0},{_v:0},{_v:0}]},
+       c2:{_total:pT.totalIn||0,rows:[{_v:pT.perfIn||0},{_v:pT.saIn||0},{_v:pT.bsaIn||0},{_v:pT.metaIn||0}]},
+       c3:{_total:pT.saleTotal||0,rows:[{_v:pT.total||0},{_v:0},{_v:0},{_v:0}]}},
+    ];
+    prevD=prevTabDefs[curTab]||prevTabDefs[1];
+  }
 
-  // 동기간 비교 표시
+  updateCard(1, d.c1, prevD?.c1||null);
+  updateCard(2, d.c2, prevD?.c2||null);
+  updateCard(3, d.c3, prevD?.c3||null);
 
 
   // 별도 id 참조 업데이트 (하위 호환)
@@ -988,10 +1047,18 @@ function getPrevData(from, to){
 function makeCmpCell(cur, prev, fmtFn){
   if(prev===null||prev===undefined) return fmtFn(cur);
   const diff = cur - prev;
-  const diffPct = prev!==0 ? (diff/Math.abs(prev)*100).toFixed(1) : '—';
   const color = diff>0?'var(--green)':diff<0?'var(--red)':'var(--t2)';
   const arrow = diff>0?'▲':diff<0?'▼':'';
-  return fmtFn(cur)+`<br><span style="font-size:9px;color:${color}">${arrow}${diffPct!=='—'?diffPct+'%':''} vs 이전</span>`;
+  const curStr=fmtFn(cur);
+  let diffStr;
+  if(curStr.includes('%')){
+    diffStr=(diff>0?'+':'')+diff.toFixed(1)+'%p';
+  } else if(curStr.includes('₩')||curStr.includes('원')){
+    diffStr=(diff>=0?'+':'')+won(diff);
+  } else {
+    diffStr=(diff>=0?'+':'')+Math.round(diff).toLocaleString();
+  }
+  return curStr+`<br><span style="font-size:9px;color:${color}">${arrow}${diffStr} vs 이전</span>`;
 }
 
 let chChart = null;
