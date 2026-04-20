@@ -397,44 +397,42 @@ async function loadMemos(){
 }
 
 async function saveMemo(date,memo,author){
-  try{
-    const res=await fetch(MEMO_URL,{
-      method:'POST',
-      body:JSON.stringify({action:'save',date,memo,author}),
-      headers:{'Content-Type':'application/json'}
-    });
-    const json=await res.json();
+  // 1. 즉시 로컬 캐시 업데이트 (화면 먼저 반영)
+  const tempId='tmp_'+Date.now();
+  const newItem={id:tempId,memo,author,written:toSeoulDatetime(new Date())};
+  if(!memoCache[date])memoCache[date]=[];
+  memoCache[date].push(newItem);
+
+  // 2. 서버에 백그라운드 저장 (기다리지 않음)
+  fetch(MEMO_URL,{
+    method:'POST',
+    body:JSON.stringify({action:'save',date,memo,author}),
+    headers:{'Content-Type':'application/json'}
+  }).then(r=>r.json()).then(json=>{
     if(json.ok){
-      const newItem={id:json.id,memo,author,written:toSeoulDatetime(new Date())};
-      if(!memoCache[date])memoCache[date]=[];
-      memoCache[date].push(newItem);
+      // 임시 id를 실제 id로 교체
+      const idx=memoCache[date]?.findIndex(m=>m.id===tempId);
+      if(idx>=0)memoCache[date][idx].id=json.id;
     }
-  }catch(e){
-    // no-cors fallback
-    try{
-      await fetch(MEMO_URL,{method:'POST',mode:'no-cors',body:JSON.stringify({action:'save',date,memo,author})});
-      const newItem={id:Date.now().toString(),memo,author,written:toSeoulDatetime(new Date())};
-      if(!memoCache[date])memoCache[date]=[];
-      memoCache[date].push(newItem);
-    }catch(e2){alert('메모 저장 실패: '+e2.message);}
-  }
+  }).catch(()=>{
+    // 실패해도 로컬엔 남아있음 - 조용히 처리
+    console.log('메모 백그라운드 저장 실패 - 로컬에만 존재');
+  });
 }
 
 async function deleteMemo(date,id){
-  try{
-    await fetch(MEMO_URL,{
-      method:'POST',
-      body:JSON.stringify({action:'delete',date,id}),
-      headers:{'Content-Type':'application/json'}
-    });
-  }catch(e){
-    await fetch(MEMO_URL,{method:'POST',mode:'no-cors',body:JSON.stringify({action:'delete',date,id})});
-  }
-  // 로컬 캐시에서 해당 id 제거
+  // 1. 즉시 로컬에서 제거
   if(memoCache[date]){
     memoCache[date]=memoCache[date].filter(m=>m.id!==id);
     if(memoCache[date].length===0) delete memoCache[date];
   }
+
+  // 2. 서버 삭제는 백그라운드
+  fetch(MEMO_URL,{
+    method:'POST',
+    body:JSON.stringify({action:'delete',date,id}),
+    headers:{'Content-Type':'application/json'}
+  }).catch(()=>console.log('메모 삭제 백그라운드 실패'));
 }
 
 function openMemoModal(date){
@@ -485,21 +483,20 @@ function openMemoModal(date){
   setTimeout(()=>{const inp=document.getElementById('memo-author');if(inp)inp.focus();},50);
 }
 
-async function handleSaveMemo(date){
+function handleSaveMemo(date){
   const val=(document.getElementById('memo-input')?.value||'').trim();
   const author=(document.getElementById('memo-author')?.value||'').trim();
   if(!val){alert('메모 내용을 입력해주세요.');return;}
-  const btn=document.querySelector('#memo-modal button:last-child');
-  if(btn){btn.textContent='추가 중...';btn.disabled=true;}
-  await saveMemo(date,val,author);
+  // 즉시 닫고 화면 업데이트 (서버 저장은 백그라운드)
+  saveMemo(date,val,author);
   document.getElementById('memo-modal').remove();
   renderDailyTable();
 }
 
-async function handleDeleteMemo(date,id){
+function handleDeleteMemo(date,id){
   if(!confirm('이 메모를 삭제할까요?'))return;
-  await deleteMemo(date,id);
-  openMemoModal(date); // 모달 새로고침
+  deleteMemo(date,id);
+  openMemoModal(date); // 즉시 모달 새로고침
   renderDailyTable();
 }
 
@@ -1744,6 +1741,7 @@ function renderDetailTables(){
     sa_shop :saAll.filter(r=>nrm(r[saCampType])==='쇼핑검색'),
     sa_power:saAll.filter(r=>nrm(r[saCampType])==='파워링크'),
     sa_brand:saAll.filter(r=>nrm(r[saCampType]).includes('브랜드검색')),
+    sa_new_product:saAll.filter(r=>nrm(r[saCampType])==='신제품검색'),
     meta    :metaAll,
     total   :[...gfaAll,...saAll,...metaAll],
   };
