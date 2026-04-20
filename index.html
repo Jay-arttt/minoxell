@@ -376,117 +376,130 @@ const URLS={
   sale:'https://docs.google.com/spreadsheets/d/e/2PACX-1vTGKrM6s-0cb1iLxW_CKAyTgzIljpqB2BsxCb4b-Mr5ZeU8AalPQpAq1LWXeo8kZQlsOKJaaAe766hd/pub?gid=1097958593&single=true&output=csv',
 };
 
-const MEMO_URL='https://script.google.com/macros/s/AKfycbwOT0-hglgNClff7RxLg349VMOyDuay-PfJ8VuNTR0Ef_zdyyEVZp3Up5MEDh4MLpWe/exec';
+const MEMO_URL='https://script.google.com/macros/s/AKfycbxAZv5683HeoGZbCmjn5zM0LyQsdMBQ9kAHZ1mwWBrjCDmPsp5KKmoRrK5gK_6ln1KE/exec';
 const MEMO_CSV='https://docs.google.com/spreadsheets/d/e/2PACX-1vTGKrM6s-0cb1iLxW_CKAyTgzIljpqB2BsxCb4b-Mr5ZeU8AalPQpAq1LWXeo8kZQlsOKJaaAe766hd/pub?gid=190092686&single=true&output=csv';
 let memoCache={};
 
 async function loadMemos(){
-  // CSV로 로드 (공개 게시된 시트 - CORS 문제 없음)
   try{
-    const res=await fetch(MEMO_CSV);
-    const text=await res.text();
+    const res=await fetch(MEMO_URL+'?t='+Date.now());
+    const data=await res.json();
+    // data = {날짜: [{id,memo,author,written},...]}
     memoCache={};
-    const rows=text.trim().split('\n');
-    // 헤더 행 건너뛰기
-    rows.slice(1).forEach(row=>{
-      if(!row.trim())return;
-      // CSV 파싱 (쉼표, 따옴표 처리)
-      const cols=[];
-      let cur='', inQ=false;
-      for(let i=0;i<row.length;i++){
-        if(row[i]==='"'){inQ=!inQ;}
-        else if(row[i]===','&&!inQ){cols.push(cur.trim());cur='';}
-        else cur+=row[i];
-      }
-      cols.push(cur.trim());
-      const date=(cols[0]||'').replace(/^"|"$/g,'').trim();
-      const memo=(cols[1]||'').replace(/^"|"$/g,'').trim();
-      const author=(cols[2]||'').replace(/^"|"$/g,'').trim();
-      const written=(cols[3]||'').replace(/^"|"$/g,'').trim();
-      if(date)memoCache[date]={memo,author,written};
+    Object.entries(data).forEach(([date,list])=>{
+      memoCache[date]=Array.isArray(list)?list:[];
     });
-    console.log('메모 로드 완료:', Object.keys(memoCache).length+'건');
-  }catch(e){console.log('메모 로드 실패',e);}
+    console.log('메모 로드 완료:', Object.keys(memoCache).length+'일치');
+  }catch(e){
+    console.log('메모 로드 실패',e);
+    memoCache={};
+  }
 }
 
 async function saveMemo(date,memo,author){
   try{
-    // Apps Script는 no-cors로 호출 (응답 못 받지만 저장됨)
-    await fetch(MEMO_URL,{
+    const res=await fetch(MEMO_URL,{
       method:'POST',
-      mode:'no-cors',
-      body:JSON.stringify({action:'save',date,memo,author})
+      body:JSON.stringify({action:'save',date,memo,author}),
+      headers:{'Content-Type':'application/json'}
     });
-    // 로컬 캐시는 즉시 업데이트
-    memoCache[date]={memo,author,written:toSeoulDatetime(new Date())};
-  }catch(e){alert('메모 저장 실패: '+e.message);}
+    const json=await res.json();
+    if(json.ok){
+      const newItem={id:json.id,memo,author,written:toSeoulDatetime(new Date())};
+      if(!memoCache[date])memoCache[date]=[];
+      memoCache[date].push(newItem);
+    }
+  }catch(e){
+    // no-cors fallback
+    try{
+      await fetch(MEMO_URL,{method:'POST',mode:'no-cors',body:JSON.stringify({action:'save',date,memo,author})});
+      const newItem={id:Date.now().toString(),memo,author,written:toSeoulDatetime(new Date())};
+      if(!memoCache[date])memoCache[date]=[];
+      memoCache[date].push(newItem);
+    }catch(e2){alert('메모 저장 실패: '+e2.message);}
+  }
 }
 
-async function deleteMemo(date){
+async function deleteMemo(date,id){
   try{
     await fetch(MEMO_URL,{
       method:'POST',
-      mode:'no-cors',
-      body:JSON.stringify({action:'delete',date})
+      body:JSON.stringify({action:'delete',date,id}),
+      headers:{'Content-Type':'application/json'}
     });
-    delete memoCache[date];
-  }catch(e){alert('메모 삭제 실패: '+e.message);}
+  }catch(e){
+    await fetch(MEMO_URL,{method:'POST',mode:'no-cors',body:JSON.stringify({action:'delete',date,id})});
+  }
+  // 로컬 캐시에서 해당 id 제거
+  if(memoCache[date]){
+    memoCache[date]=memoCache[date].filter(m=>m.id!==id);
+    if(memoCache[date].length===0) delete memoCache[date];
+  }
 }
 
 function openMemoModal(date){
-  const existing=memoCache[date]||'';
   const old=document.getElementById('memo-modal');
   if(old)old.remove();
+  const list=memoCache[date]||[];
+  const historyHtml=list.length
+    ?[...list].reverse().map(m=>`
+        <div style="background:var(--bg);border-radius:8px;padding:.625rem .875rem;margin-bottom:6px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+            <span style="font-size:10px;color:var(--t2)">${m.written} ${m.author?'· '+m.author:''}</span>
+            <button onclick="handleDeleteMemo('${date}','${m.id}')"
+              style="font-size:10px;padding:1px 7px;border-radius:6px;border:1px solid var(--red);color:var(--red);background:transparent;cursor:pointer">삭제</button>
+          </div>
+          <div style="font-size:12px;color:var(--text);white-space:pre-wrap">${m.memo}</div>
+        </div>`).join('')
+    :'<div style="font-size:11px;color:var(--t3);padding:.5rem 0">작성된 메모가 없어요</div>';
+
   const modal=document.createElement('div');
   modal.id='memo-modal';
   modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:9999;display:flex;align-items:center;justify-content:center';
-  const existingObj=memoCache[date]||{};
-  const existingMemo=existingObj.memo||'';
-  const existingAuthor=existingObj.author||'';
-  const existingWritten=existingObj.written||'';
   modal.innerHTML=`
-    <div style="background:var(--surface);border-radius:12px;padding:1.5rem;width:440px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.18)">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+    <div style="background:var(--surface);border-radius:12px;padding:1.5rem;width:460px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.18);max-height:80vh;display:flex;flex-direction:column">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-shrink:0">
         <div style="font-size:14px;font-weight:700;color:var(--text)">${date} 메모</div>
         <button onclick="document.getElementById('memo-modal').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--t2);line-height:1">×</button>
       </div>
-      <div style="margin-bottom:.625rem">
-        <label style="font-size:11px;color:var(--t2);display:block;margin-bottom:3px">작성자</label>
-        <input id="memo-author" type="text" value="${existingAuthor}" placeholder="이름 입력..."
-          style="width:100%;box-sizing:border-box;font-size:12px;padding:5px 8px;border-radius:6px;border:1px solid var(--border-m);font-family:inherit;color:var(--text);background:var(--surface)"/>
+      <!-- 히스토리 -->
+      <div style="overflow-y:auto;flex:1;margin-bottom:1rem;min-height:60px">
+        ${historyHtml}
       </div>
-      <div style="margin-bottom:.625rem">
-        <label style="font-size:11px;color:var(--t2);display:block;margin-bottom:3px">메모 내용</label>
-        <textarea id="memo-input" rows="4" placeholder="메모를 입력하세요..."
-          style="width:100%;box-sizing:border-box;font-size:13px;padding:.625rem;border-radius:8px;border:1px solid var(--border-m);font-family:inherit;color:var(--text);background:var(--surface);resize:vertical;line-height:1.6"
-        >${existingMemo}</textarea>
-      </div>
-      ${existingWritten?`<div style="font-size:10px;color:var(--t3);margin-bottom:.5rem">최종 수정: ${existingWritten} ${existingAuthor?'/ '+existingAuthor:''}</div>`:''}
-      <div style="display:flex;gap:8px;margin-top:.875rem;justify-content:flex-end">
-        ${existingMemo?`<button onclick="handleDeleteMemo('${date}')" style="font-size:12px;padding:6px 14px;border-radius:6px;border:1px solid var(--red);color:var(--red);background:transparent;cursor:pointer">삭제</button>`:''}
-        <button onclick="document.getElementById('memo-modal').remove()" style="font-size:12px;padding:6px 14px;border-radius:6px;border:1px solid var(--border-m);color:var(--t2);background:transparent;cursor:pointer">취소</button>
-        <button onclick="handleSaveMemo('${date}')" style="font-size:12px;padding:6px 18px;border-radius:6px;border:none;background:var(--blue);color:#fff;cursor:pointer;font-weight:500">저장</button>
+      <!-- 새 메모 입력 -->
+      <div style="flex-shrink:0;border-top:1px solid var(--border);padding-top:.875rem">
+        <div style="font-size:11px;font-weight:600;color:var(--t2);margin-bottom:.5rem">새 메모 추가</div>
+        <div style="margin-bottom:.5rem">
+          <input id="memo-author" type="text" placeholder="작성자..."
+            style="width:100%;box-sizing:border-box;font-size:12px;padding:5px 8px;border-radius:6px;border:1px solid var(--border-m);font-family:inherit;color:var(--text);background:var(--surface)"/>
+        </div>
+        <textarea id="memo-input" rows="3" placeholder="메모 내용을 입력하세요..."
+          style="width:100%;box-sizing:border-box;font-size:13px;padding:.625rem;border-radius:8px;border:1px solid var(--border-m);font-family:inherit;color:var(--text);background:var(--surface);resize:vertical;line-height:1.6"></textarea>
+        <div style="display:flex;justify-content:flex-end;margin-top:.625rem">
+          <button onclick="handleSaveMemo('${date}')" style="font-size:12px;padding:6px 18px;border-radius:6px;border:none;background:var(--blue);color:#fff;cursor:pointer;font-weight:500">추가</button>
+        </div>
       </div>
     </div>`;
   document.body.appendChild(modal);
   modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();});
-  setTimeout(()=>{const inp=document.getElementById('memo-input');if(inp)inp.focus();},50);
+  setTimeout(()=>{const inp=document.getElementById('memo-author');if(inp)inp.focus();},50);
 }
 
 async function handleSaveMemo(date){
-  const val=document.getElementById('memo-input').value.trim();
+  const val=(document.getElementById('memo-input')?.value||'').trim();
   const author=(document.getElementById('memo-author')?.value||'').trim();
+  if(!val){alert('메모 내용을 입력해주세요.');return;}
   const btn=document.querySelector('#memo-modal button:last-child');
-  if(btn){btn.textContent='저장 중...';btn.disabled=true;}
+  if(btn){btn.textContent='추가 중...';btn.disabled=true;}
   await saveMemo(date,val,author);
   document.getElementById('memo-modal').remove();
   renderDailyTable();
 }
 
-async function handleDeleteMemo(date){
-  if(!confirm(date+' 메모를 삭제할까요?'))return;
-  await deleteMemo(date);
-  document.getElementById('memo-modal').remove();
+async function handleDeleteMemo(date,id){
+  if(!confirm('이 메모를 삭제할까요?'))return;
+  await deleteMemo(date,id);
+  openMemoModal(date); // 모달 새로고침
   renderDailyTable();
 }
 
@@ -2405,9 +2418,11 @@ function renderDailyTable(){
     const roas=cost>0?pct(mediaRev/cost):'—';
     const roasReal=cost>0?pct(storeRev/cost):'—';
     const s=bold?'font-weight:700;border-top:2px solid var(--border-m)':'';
-    const memoObj=bold?{}:(memoCache[label]||{});
-    const memo=typeof memoObj==='object'?memoObj.memo||'':memoObj;
-    const memoAuthor=typeof memoObj==='object'?memoObj.author||'':'';
+    const memoList=bold?[]:(memoCache[label]||[]);
+    const memoCount=Array.isArray(memoList)?memoList.length:0;
+    const lastMemo=memoCount>0?memoList[memoList.length-1]:{};
+    const memo=lastMemo.memo||'';
+    const memoAuthor=lastMemo.author||'';
     const memoCell=`<div style="display:flex;align-items:center;gap:5px;min-width:120px">
         ${memo?`<span style="font-size:10px;color:var(--t2);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${memo}${memoAuthor?" ("+memoAuthor+")":""}">${memo}${memoAuthor?" ("+memoAuthor+")":""}</span>`:''}
         <button onclick="openMemoModal('${label}')"
