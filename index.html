@@ -340,6 +340,30 @@ tr:hover td{background:var(--bg)}
     <p class="pn" id="dow-note"></p>
   </div>
 
+  <!-- 일자별 성과 테이블 -->
+  <div class="tp" style="margin-bottom:1.5rem">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:.875rem">
+      <div>
+        <div class="tt">일자별 성과</div>
+        <div style="font-size:10px;color:var(--t2);margin-top:3px" id="daily-range-label"></div>
+      </div>
+    </div>
+    <div class="tw"><table id="daily-table" style="font-size:11px"></table></div>
+    <p class="pn">* 광고비·매체매출: SA+GFA+META 합산 / 스토어매출: 판매성과 시트 / ROAS: 매체매출÷광고비 / 실질ROAS: 스토어매출÷광고비</p>
+  </div>
+
+  <!-- 시간대별 스토어 통계 -->
+  <div class="tp" style="margin-bottom:2rem">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:.875rem">
+      <div>
+        <div class="tt">시간대별 스토어 판매성과</div>
+        <div style="font-size:10px;color:var(--t2);margin-top:3px" id="hourly-range-label"></div>
+      </div>
+    </div>
+    <div class="tw"><table id="hourly-table" style="font-size:11px"></table></div>
+    <p class="pn">* 스토어 판매성과 시트 기준 / 시간대별 결제금액 합산</p>
+  </div>
+
 </div>
 
 <script>
@@ -683,6 +707,8 @@ function renderDashboard(){
   renderDetailTables();
   renderDrillTable();
   renderDowChart();
+  renderDailyTable();
+  renderHourlyTable();
   renderChChart();
 }
 
@@ -737,6 +763,8 @@ function setAttr(attr){
   renderDetailTables();
   renderDrillTable();
   renderDowChart();
+  renderDailyTable();
+  renderHourlyTable();
 }
 
 function renderKpiBoard(){
@@ -1031,7 +1059,7 @@ function renderKpiBoard(){
        c2:EMPTY,
        c3:EMPTY},
       // 3: ROAS
-      {c1:{_total:pT.totalCost>0?pT.mediaTotal/pT.totalCost*100:0,rows:[{_v:pT.gfaRevT&&pT.gfaCost?pT.gfaRevT/pT.gfaCost*100:0},{_v:(pT.saRevT-pT.bsaRev)&&pT.saCost?(pT.saRevT-pT.bsaRev)/pT.saCost*100:0},{_v:pT.bsaRev&&pT.bsaCost?pT.bsaRev/pT.bsaCost*100:0},{_v:pT.meRevT&&pT.meCost?pT.meRevT/pT.meCost*100:0}]},
+      {c1:{_total:pT.totalCost>0?pT.mediaTotal/pT.totalCost*100:0,rows:[{_v:pT.gfaCost>0?pT.gfaRevT/pT.gfaCost*100:0},{_v:(pT.saCost-pT.bsaCost)>0?(pT.saRevT-pT.bsaRev)/(pT.saCost-pT.bsaCost)*100:0},{_v:pT.bsaCost>0?pT.bsaRev/pT.bsaCost*100:0},{_v:pT.meCost>0?pT.meRevT/pT.meCost*100:0}]},
        c2:{_total:pT.gfaCost>0?pT.perfRev/pT.gfaCost*100:0,rows:[{_v:pT.gfaCost>0?pT.perfRev/pT.gfaCost*100:0},{_v:0},{_v:0},{_v:0}]},
        c3:{_total:pT.saleTotal||0,rows:[{_v:pT.total||0},{_v:Math.max(0,(pT.saleTotal||0)-(pT.total||0))},{_v:0},{_v:0}]}},
       // 4: 전환율
@@ -2127,6 +2155,159 @@ function renderDowChart(){
   if(rangeLabel)rangeLabel.textContent=`${from} ~ ${to} / ${metricLabels[metric]}`;
   const note=document.getElementById('dow-note');
   if(note)note.textContent='* 요일별 합산 기준 (월~일) / 스토어 마케팅분석 기준';
+}
+
+// ── 일자별 성과 테이블 ────────────────────────────────────────
+function renderDailyTable(){
+  if(!COLS.ready)return;
+  const {saDateC,gDateC,meDateC,slDateC}=COLS;
+  const from=curFrom, to=curTo;
+  if(!from||!to)return;
+
+  const saAll  =filterByDate(RAW.sa,   saDateC, from, to);
+  const gfaAll =filterByDate(RAW.gfa,  gDateC,  from, to);
+  const metaAll=filterByDate(RAW.meta, meDateC, from, to);
+  const sale   =filterByDate(RAW.sale, slDateC, from, to);
+
+  // 날짜별로 묶기
+  const dateMap={};
+  const addToDate=(rows, dateCol, type)=>{
+    rows.forEach(r=>{
+      const d=parseDate(r[dateCol]);
+      if(!d)return;
+      if(!dateMap[d])dateMap[d]={cost:0,mediaRev:0,storeRev:0};
+      if(type==='media'){
+        dateMap[d].cost+=num(r['총비용(vat-)']);
+        dateMap[d].mediaRev+=num(r['구매완료 매출액']);
+      }
+    });
+  };
+  addToDate(saAll,   saDateC,  'media');
+  addToDate(gfaAll,  gDateC,   'media');
+  addToDate(metaAll, meDateC,  'media');
+
+  // 판매성과 날짜별
+  const slDateCol=COLS.slDateC;
+  const slRevCol =COLS.slRev;
+  sale.forEach(r=>{
+    const d=parseDate(r[slDateCol]);
+    if(!d)return;
+    if(!dateMap[d])dateMap[d]={cost:0,mediaRev:0,storeRev:0};
+    dateMap[d].storeRev+=num(r[slRevCol]);
+  });
+
+  const dates=Object.keys(dateMap).sort();
+  if(!dates.length){
+    const tbl=document.getElementById('daily-table');
+    if(tbl)tbl.innerHTML='<tr><td style="padding:1rem;color:var(--t2)">데이터 없음</td></tr>';
+    return;
+  }
+
+  // 합계
+  let totCost=0,totMedia=0,totStore=0;
+  dates.forEach(d=>{totCost+=dateMap[d].cost;totMedia+=dateMap[d].mediaRev;totStore+=dateMap[d].storeRev;});
+
+  const thead=`<thead><tr>
+    <th style="text-align:left">일자</th>
+    <th>광고비 (VAT-)</th>
+    <th>매체 매출</th>
+    <th>스토어 매출</th>
+    <th>매체 ROAS</th>
+    <th>실질 ROAS</th>
+  </tr></thead>`;
+
+  const makeRow=(label,cost,mediaRev,storeRev,bold)=>{
+    const roas=cost>0?pct(mediaRev/cost):'—';
+    const roasReal=cost>0?pct(storeRev/cost):'—';
+    const s=bold?'font-weight:700;border-top:2px solid var(--border-m)':'';
+    return`<tr style="${s}">
+      <td style="text-align:left;white-space:nowrap">${label}</td>
+      <td style="text-align:right">${won(cost)}</td>
+      <td style="text-align:right">${won(mediaRev)}</td>
+      <td style="text-align:right">${won(storeRev)}</td>
+      <td style="text-align:right">${roas}</td>
+      <td style="text-align:right">${roasReal}</td>
+    </tr>`;
+  };
+
+  const tbody='<tbody>'+
+    dates.map(d=>makeRow(d,dateMap[d].cost,dateMap[d].mediaRev,dateMap[d].storeRev,false)).join('')+
+    makeRow('합계',totCost,totMedia,totStore,true)+
+    '</tbody>';
+
+  const tbl=document.getElementById('daily-table');
+  if(tbl)tbl.innerHTML=thead+tbody;
+
+  const lbl=document.getElementById('daily-range-label');
+  if(lbl)lbl.textContent=`${from} ~ ${to} / ${dates.length}일`;
+}
+
+// ── 시간대별 스토어 판매성과 ──────────────────────────────────
+function renderHourlyTable(){
+  if(!COLS.ready)return;
+  const {slDateC,slRev}=COLS;
+  const from=curFrom,to=curTo;
+  if(!from||!to)return;
+
+  const sale=filterByDate(RAW.sale,slDateC,from,to);
+
+  // 시간대 컬럼 찾기
+  const slCols=Object.keys(RAW.sale[0]||{});
+  const hourCol=slCols.find(k=>k.includes('시간대'))||null;
+  const cntCol=slCols.find(k=>k.includes('결제수')&&!k.includes('비율')&&!k.includes('환불'))||slRev;
+
+  if(!hourCol){
+    const tbl=document.getElementById('hourly-table');
+    if(tbl)tbl.innerHTML='<tr><td style="padding:1rem;color:var(--t2)">시간대 컬럼 없음</td></tr>';
+    return;
+  }
+
+  // 시간대별 집계
+  const hourMap={};
+  sale.forEach(r=>{
+    const h=r[hourCol]||'미분류';
+    if(!hourMap[h])hourMap[h]={rev:0,cnt:0};
+    hourMap[h].rev+=num(r[slRev]);
+    hourMap[h].cnt+=num(r[cntCol]);
+  });
+
+  // 시간대 정렬 (숫자 추출)
+  const hours=Object.keys(hourMap).sort((a,b)=>{
+    const na=parseInt(a)||0, nb=parseInt(b)||0;
+    return na-nb;
+  });
+
+  let totRev=0,totCnt=0;
+  hours.forEach(h=>{totRev+=hourMap[h].rev;totCnt+=hourMap[h].cnt;});
+
+  const thead=`<thead><tr>
+    <th style="text-align:left">시간대</th>
+    <th>결제금액</th>
+    <th>결제수</th>
+    <th>비중</th>
+  </tr></thead>`;
+
+  const makeRow=(label,rev,cnt,bold)=>{
+    const share=totRev>0?pct(rev/totRev):'—';
+    const s=bold?'font-weight:700;border-top:2px solid var(--border-m)':'';
+    return`<tr style="${s}">
+      <td style="text-align:left;white-space:nowrap">${label}</td>
+      <td style="text-align:right">${won(rev)}</td>
+      <td style="text-align:right">${Math.round(cnt).toLocaleString()}</td>
+      <td style="text-align:right">${share}</td>
+    </tr>`;
+  };
+
+  const tbody='<tbody>'+
+    hours.map(h=>makeRow(h,hourMap[h].rev,hourMap[h].cnt,false)).join('')+
+    makeRow('합계',totRev,totCnt,true)+
+    '</tbody>';
+
+  const tbl=document.getElementById('hourly-table');
+  if(tbl)tbl.innerHTML=thead+tbody;
+
+  const lbl=document.getElementById('hourly-range-label');
+  if(lbl)lbl.textContent=`${from} ~ ${to} / 판매성과 시트 기준`;
 }
 
 function renderChChart(){
