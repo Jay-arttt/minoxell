@@ -2362,15 +2362,15 @@ function renderDailyTable(){
             </button>
           </div>
         </td>`;
-    return\`<tr style="\${s}">
-      <td style="text-align:left;white-space:nowrap">\${label}</td>
-      <td style="text-align:right">\${won(cost)}</td>
-      <td style="text-align:right">\${won(mediaRev)}</td>
-      <td style="text-align:right">\${won(storeRev)}</td>
-      <td style="text-align:right">\${roas}</td>
-      <td style="text-align:right">\${roasReal}</td>
-      \${memoCell}
-    </tr>\`;
+    return `<tr style="${s}">
+      <td style="text-align:left;white-space:nowrap">${label}</td>
+      <td style="text-align:right">${won(cost)}</td>
+      <td style="text-align:right">${won(mediaRev)}</td>
+      <td style="text-align:right">${won(storeRev)}</td>
+      <td style="text-align:right">${roas}</td>
+      <td style="text-align:right">${roasReal}</td>
+      ${memoCell}
+    </tr>`;
   };
 
   const tbody='<tbody>'+
