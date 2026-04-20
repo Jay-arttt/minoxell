@@ -173,6 +173,7 @@ tr:hover td{background:var(--bg)}
         <div class="kb-row"><span class="kb-row-label">GFA</span><span class="kb-row-val">—</span></div>
         <div class="kb-row"><span class="kb-row-label">SA(검색/쇼핑)</span><span class="kb-row-val">—</span></div>
         <div class="kb-row"><span class="kb-row-label">BSA(브랜드검색)</span><span class="kb-row-val">—</span></div>
+        <div class="kb-row"><span class="kb-row-label">SA(신제품검색)</span><span class="kb-row-val">—</span></div>
         <div class="kb-row"><span class="kb-row-label">META</span><span class="kb-row-val">—</span></div>
       </div>
     </div>
@@ -375,6 +376,82 @@ const URLS={
   sale:'https://docs.google.com/spreadsheets/d/e/2PACX-1vTGKrM6s-0cb1iLxW_CKAyTgzIljpqB2BsxCb4b-Mr5ZeU8AalPQpAq1LWXeo8kZQlsOKJaaAe766hd/pub?gid=1097958593&single=true&output=csv',
 };
 
+const MEMO_URL='https://script.google.com/macros/s/AKfycbxTV1y-2vgtSO9apegsuZHJ7thOhO0DqAk3hFq0I0Y15xCngMh5TbTF9hdxQZZnwzoR/exec';
+const MEMO_CSV='https://docs.google.com/spreadsheets/d/e/2PACX-1vTGKrM6s-0cb1iLxW_CKAyTgzIljpqB2BsxCb4b-Mr5ZeU8AalPQpAq1LWXeo8kZQlsOKJaaAe766hd/pub?gid=190092686&single=true&output=csv';
+let memoCache={};
+
+async function loadMemos(){
+  try{
+    const res=await fetch(MEMO_CSV);
+    const text=await res.text();
+    memoCache={};
+    text.trim().split('\n').slice(1).forEach(row=>{
+      const m=row.match(/^"?([^",]+)"?,(.*)$/);
+      if(!m)return;
+      const date=m[1].trim();
+      const memo=m[2].replace(/^"|"$/g,'').trim();
+      if(date)memoCache[date]=memo;
+    });
+  }catch(e){console.log('메모 로드 실패',e);}
+}
+
+async function saveMemo(date,memo){
+  try{
+    await fetch(MEMO_URL,{method:'POST',body:JSON.stringify({action:'save',date,memo})});
+    memoCache[date]=memo;
+  }catch(e){alert('메모 저장 실패');}
+}
+
+async function deleteMemo(date){
+  try{
+    await fetch(MEMO_URL,{method:'POST',body:JSON.stringify({action:'delete',date})});
+    delete memoCache[date];
+  }catch(e){alert('메모 삭제 실패');}
+}
+
+function openMemoModal(date){
+  const existing=memoCache[date]||'';
+  const old=document.getElementById('memo-modal');
+  if(old)old.remove();
+  const modal=document.createElement('div');
+  modal.id='memo-modal';
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:9999;display:flex;align-items:center;justify-content:center';
+  modal.innerHTML=`
+    <div style="background:var(--surface);border-radius:12px;padding:1.5rem;width:420px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.18)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+        <div style="font-size:14px;font-weight:700;color:var(--text)">${date} 메모</div>
+        <button onclick="document.getElementById('memo-modal').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--t2);line-height:1">×</button>
+      </div>
+      <textarea id="memo-input" rows="5" placeholder="메모를 입력하세요..."
+        style="width:100%;box-sizing:border-box;font-size:13px;padding:.625rem;border-radius:8px;border:1px solid var(--border-m);font-family:inherit;color:var(--text);background:var(--surface);resize:vertical;line-height:1.6"
+      >${existing}</textarea>
+      <div style="display:flex;gap:8px;margin-top:.875rem;justify-content:flex-end">
+        ${existing?`<button onclick="handleDeleteMemo('${date}')" style="font-size:12px;padding:6px 14px;border-radius:6px;border:1px solid var(--red);color:var(--red);background:transparent;cursor:pointer">삭제</button>`:''}
+        <button onclick="document.getElementById('memo-modal').remove()" style="font-size:12px;padding:6px 14px;border-radius:6px;border:1px solid var(--border-m);color:var(--t2);background:transparent;cursor:pointer">취소</button>
+        <button onclick="handleSaveMemo('${date}')" style="font-size:12px;padding:6px 18px;border-radius:6px;border:none;background:var(--blue);color:#fff;cursor:pointer;font-weight:500">저장</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();});
+  setTimeout(()=>document.getElementById('memo-input').focus(),50);
+}
+
+async function handleSaveMemo(date){
+  const val=document.getElementById('memo-input').value.trim();
+  const btn=document.querySelector('#memo-modal button:last-child');
+  if(btn){btn.textContent='저장 중...';btn.disabled=true;}
+  await saveMemo(date,val);
+  document.getElementById('memo-modal').remove();
+  renderDailyTable();
+}
+
+async function handleDeleteMemo(date){
+  if(!confirm(date+' 메모를 삭제할까요?'))return;
+  await deleteMemo(date);
+  document.getElementById('memo-modal').remove();
+  renderDailyTable();
+}
+
 // 원본 데이터 저장소
 let RAW={sa:[],gfa:[],meta:[],mkt:[],sale:[]};
 let COLS={};
@@ -521,6 +598,7 @@ function renderDashboard(){
   const sa_shopping = saAll.filter(r=>nrm(r[saCampType])==='쇼핑검색');
   const sa_power    = saAll.filter(r=>nrm(r[saCampType])==='파워링크');
   const sa_brand    = saAll.filter(r=>nrm(r[saCampType]).includes('브랜드검색'));
+  const sa_new      = saAll.filter(r=>nrm(r[saCampType])==='신제품검색');
   const sa_all      = saAll; // 전체 SA 합산용
 
   // ── GFA 캠페인명별 분리 ──────────────────────────────
@@ -558,6 +636,7 @@ function renderDashboard(){
     shopping:{clicks:sum(sa_shopping,saClick),rev:sum(sa_shopping,saRev),cost:sum(sa_shopping,saCost),cart:sum(sa_shopping,saCartRev)},
     power:   {clicks:sum(sa_power,saClick),   rev:sum(sa_power,saRev),   cost:sum(sa_power,saCost),   cart:sum(sa_power,saCartRev)},
     brand:   {clicks:sum(sa_brand,saClick),   rev:sum(sa_brand,saRev),   cost:sum(sa_brand,saCost),   cart:sum(sa_brand,saCartRev)},
+    new_product:{clicks:sum(sa_new,saClick),rev:sum(sa_new,saRev),cost:sum(sa_new,saCost),cart:sum(sa_new,saCartRev)},
   };
   // GFA 전체
   const gT={
@@ -794,9 +873,13 @@ function renderKpiBoard(){
 
   // SA 브랜드검색 분리
   const sa_brand_kb=saAll.filter(r=>nrm(r[saCampType]).includes('브랜드검색'));
+  const sa_new_kb  =saAll.filter(r=>nrm(r[saCampType])==='신제품검색');
   const bsaClicks  =sum(sa_brand_kb,saClick);
   const bsaRev     =sum(sa_brand_kb,saRev);
   const bsaCost    =sum(sa_brand_kb,saCost);
+  const newClicks  =sum(sa_new_kb,saClick);
+  const newRev     =sum(sa_new_kb,saRev);
+  const newCost    =sum(sa_new_kb,saCost);
 
   const useR14=curAttr==='14';
   const revCol=useR14?mkR14:mkRl;
@@ -844,6 +927,7 @@ function renderKpiBoard(){
          rows:[{l:'GFA',v:Math.round(gfaClicks).toLocaleString(),_v:gfaClicks},
                {l:'SA(검색/쇼핑)',v:Math.round(saClicks-bsaClicks).toLocaleString(),_v:saClicks-bsaClicks},
                {l:'BSA(브랜드검색)',v:Math.round(bsaClicks).toLocaleString(),_v:bsaClicks},
+               {l:'SA(신제품검색)',v:Math.round(newClicks).toLocaleString(),_v:newClicks},
                {l:'META',v:Math.round(meClicks).toLocaleString(),_v:meClicks}]},
      c2:{lbl:'스토어 통계 — 유입수 합계',
          total:Math.round(mktTotalIn).toLocaleString(),
@@ -863,6 +947,7 @@ function renderKpiBoard(){
          rows:[{l:'GFA',v:won(gfaRevT),_v:gfaRevT},
                {l:'SA(검색/쇼핑)',v:won(saRevT-bsaRev),_v:saRevT-bsaRev},
                {l:'BSA(브랜드검색)',v:won(bsaRev),_v:bsaRev},
+               {l:'SA(신제품검색)',v:won(newRev),_v:newRev},
                {l:'META',v:won(meRevT),_v:meRevT}]},
      c2:{lbl:`스토어 통계 — 결제금액 (${attrLabel})`,
          total:won(mktTotalRev),
@@ -952,6 +1037,7 @@ function renderKpiBoard(){
       const pGfaAll2=filterByDate(RAW.gfa, gDateC, prev.from, prev.to);
       const pMetaAll2=filterByDate(RAW.meta, meDateC, prev.from, prev.to);
       const pBsaRows=pSaAll2.filter(r=>nrm(r[saCampType]).includes('브랜드검색'));
+      const pNewRows=pSaAll2.filter(r=>nrm(r[saCampType])==='신제품검색');
       const pGfaRev=sum(pGfaAll2,'구매완료 매출액');
       const pSaRevT=sum(pSaAll2,'구매완료 매출액');
       const pMeRevT=sum(pMetaAll2,'구매완료 매출액');
@@ -982,6 +1068,9 @@ function renderKpiBoard(){
         meCost:sum(pMetaAll2,'총비용(vat-)'),
         bsaCost:sum(pBsaRows,'총비용(vat-)'),
         totalClicks:sum(pGfaAll2,'클릭수')+sum(pSaAll2,'클릭수')+sum(pMetaAll2,'클릭수'),
+        newClicks:sum(pNewRows,'클릭수'),
+        newRev:sum(pNewRows,'구매완료 매출액'),
+        newCost:sum(pNewRows,'총비용(vat-)'),
         gfaOrdT:sum(pGfaAll2,'구매완료 전환수'),
         saOrdT:sum(pSaAll2,'구매완료 전환수'),
         gfaClicks:sum(pGfaAll2,'클릭수'),
@@ -1047,11 +1136,11 @@ function renderKpiBoard(){
     const pAttr=useR14?'14':'lc';
     const prevTabDefs=[
       // 0: 클릭수·유입수 - 이전 유입수
-      {c1:{_total:(pT.gfaClicks||0)+(pT.saClicks||0)+(pT.meClicks||0)+(pT.bsaClicks||0),rows:[{_v:pT.gfaClicks||0},{_v:(pT.saClicks||0)-(pT.bsaClicks||0)},{_v:pT.bsaClicks||0},{_v:pT.meClicks||0}]},
+      {c1:{_total:(pT.gfaClicks||0)+(pT.saClicks||0)+(pT.meClicks||0)+(pT.bsaClicks||0),rows:[{_v:pT.gfaClicks||0},{_v:(pT.saClicks||0)-(pT.bsaClicks||0)-(pT.newClicks||0)},{_v:pT.bsaClicks||0},{_v:pT.newClicks||0},{_v:pT.meClicks||0}]},
        c2:{_total:pT.totalIn||0,rows:[{_v:pT.perfIn||0},{_v:pT.saIn||0},{_v:pT.bsaIn||0},{_v:pT.metaIn||0}]},
        c3:{_total:0,rows:[{_v:0},{_v:0},{_v:0},{_v:0}]}},
       // 1: 매출
-      {c1:{_total:pT.mediaTotal||0,rows:[{_v:pT.gfaRevT||0},{_v:(pT.saRevT||0)-(pT.bsaRev||0)},{_v:pT.bsaRev||0},{_v:pT.meRevT||0}]},
+      {c1:{_total:pT.mediaTotal||0,rows:[{_v:pT.gfaRevT||0},{_v:(pT.saRevT||0)-(pT.bsaRev||0)-(pT.newRev||0)},{_v:pT.bsaRev||0},{_v:pT.newRev||0},{_v:pT.meRevT||0}]},
        c2:{_total:pT.total||0,rows:[{_v:pT.perfRev||0},{_v:pT.saRev||0},{_v:pT.bsaRevM||0},{_v:pT.metaRev||0}]},
        c3:{_total:pT.saleTotal||0,rows:[{_v:pT.total||0},{_v:Math.max(0,(pT.saleTotal||0)-(pT.total||0))},{_v:0},{_v:0}]}},
       // 2: 장바구니
@@ -1164,6 +1253,7 @@ function renderCompChart(){
 
   // 매체 데이터
   const sa_brand  =saAll.filter(r=>nrm(r[saCampType]).includes('브랜드검색'));
+  const sa_new    =saAll.filter(r=>nrm(r[saCampType])==='신제품검색');
   const sa_shop   =saAll.filter(r=>nrm(r[saCampType])==='쇼핑검색');
   const sa_power  =saAll.filter(r=>nrm(r[saCampType])==='파워링크');
   const gfa_perf  =gfaAll.filter(r=>!nrm(r[gCampName]).includes('ADVoost')&&!nrm(r[gAdGroup]).includes('올리브영'));
@@ -1216,6 +1306,7 @@ function renderCompChart(){
     'SA(쇼핑검색)':   mediaVal(sa_shop,   curTab),
     'SA(파워링크)':   mediaVal(sa_power,  curTab),
     'BSA(브랜드검색)':mediaVal(sa_brand,  curTab),
+    'SA(신제품검색)': mediaVal(sa_new,    curTab),
     'META':           mediaVal(metaAll,   curTab),
   };
 
@@ -1441,6 +1532,7 @@ const MATCH_ROWS = [
   {mediaLabel:'SA(쇼핑검색)',   storeLabel:'네이버 쇼핑검색광고',         mediaColor:'#3B6D11', mediaType:'sa_shop'},
   {mediaLabel:'SA(파워링크)',   storeLabel:'네이버 사이트검색광고',        mediaColor:'#27500A', mediaType:'sa_power'},
   {mediaLabel:'BSA(브랜드검색)',storeLabel:'네이버 브랜드검색(일반형)',    mediaColor:'#854F0B', mediaType:'sa_brand'},
+  {mediaLabel:'SA(신제품검색)', storeLabel:'네이버 신제품검색광고',         mediaColor:'#1D9E75', mediaType:'sa_new_product'},
   {mediaLabel:'META',           storeLabel:'사용자정의',                   mediaColor:'#3b5998', mediaType:'meta'},
 ];
 
@@ -1683,6 +1775,7 @@ function renderDetailTables(){
         sa_shop :pSaAll.filter(r=>nrm(r[saCampType])==='쇼핑검색'),
         sa_power:pSaAll.filter(r=>nrm(r[saCampType])==='파워링크'),
         sa_brand:pSaAll.filter(r=>nrm(r[saCampType]).includes('브랜드검색')),
+        sa_new_product:pSaAll.filter(r=>nrm(r[saCampType])==='신제품검색'),
         meta    :pMetaAll,
         total   :[...pGfaAll,...pSaAll,...pMetaAll],
       };
@@ -2160,7 +2253,7 @@ function renderDowChart(){
 // ── 일자별 성과 테이블 ────────────────────────────────────────
 function renderDailyTable(){
   if(!COLS.ready)return;
-  const {saDateC,gDateC,meDateC,slDateC}=COLS;
+  const {saDateC,gDateC,meDateC,slDateC,saCampType}=COLS;
   const from=curFrom, to=curTo;
   if(!from||!to)return;
 
@@ -2168,32 +2261,55 @@ function renderDailyTable(){
   const gfaAll =filterByDate(RAW.gfa,  gDateC,  from, to);
   const metaAll=filterByDate(RAW.meta, meDateC, from, to);
   const sale   =filterByDate(RAW.sale, slDateC, from, to);
+  const nrm=s=>(s||'').toString().trim();
 
   // 날짜별로 묶기
   const dateMap={};
-  const addToDate=(rows, dateCol, type)=>{
-    rows.forEach(r=>{
-      const d=parseDate(r[dateCol]);
-      if(!d)return;
-      if(!dateMap[d])dateMap[d]={cost:0,mediaRev:0,storeRev:0};
-      if(type==='media'){
-        dateMap[d].cost+=num(r['총비용(vat-)']);
-        dateMap[d].mediaRev+=num(r['구매완료 매출액']);
-      }
-    });
+  const initDate=d=>{
+    if(!dateMap[d])dateMap[d]={
+      cost:0, mediaRev:0, storeRev:0,
+      gfa:0, meta:0, power:0, shopping:0, brand:0, new_product:0
+    };
   };
-  addToDate(saAll,   saDateC,  'media');
-  addToDate(gfaAll,  gDateC,   'media');
-  addToDate(metaAll, meDateC,  'media');
 
-  // 판매성과 날짜별
-  const slDateCol=COLS.slDateC;
-  const slRevCol =COLS.slRev;
+  // GFA
+  gfaAll.forEach(r=>{
+    const d=parseDate(r[gDateC]); if(!d)return;
+    initDate(d);
+    dateMap[d].cost+=num(r['총비용(vat-)']);
+    dateMap[d].mediaRev+=num(r['구매완료 매출액']);
+    dateMap[d].gfa+=num(r['총비용(vat-)']);
+  });
+
+  // SA - 캠페인유형별 분리
+  saAll.forEach(r=>{
+    const d=parseDate(r[saDateC]); if(!d)return;
+    initDate(d);
+    const ct=nrm(r[saCampType]);
+    const c=num(r['총비용(vat-)']);
+    dateMap[d].cost+=c;
+    dateMap[d].mediaRev+=num(r['구매완료 매출액']);
+    if(ct==='파워링크')        dateMap[d].power+=c;
+    else if(ct==='쇼핑검색')   dateMap[d].shopping+=c;
+    else if(ct==='브랜드검색') dateMap[d].brand+=c;
+    else if(ct==='신제품검색') dateMap[d].new_product+=c;
+  });
+
+  // META
+  metaAll.forEach(r=>{
+    const d=parseDate(r[meDateC]); if(!d)return;
+    initDate(d);
+    const c=num(r['총비용(vat-)']);
+    dateMap[d].cost+=c;
+    dateMap[d].mediaRev+=num(r['구매완료 매출액']);
+    dateMap[d].meta+=c;
+  });
+
+  // 판매성과
   sale.forEach(r=>{
-    const d=parseDate(r[slDateCol]);
-    if(!d)return;
-    if(!dateMap[d])dateMap[d]={cost:0,mediaRev:0,storeRev:0};
-    dateMap[d].storeRev+=num(r[slRevCol]);
+    const d=parseDate(r[slDateC]); if(!d)return;
+    initDate(d);
+    dateMap[d].storeRev+=num(r[COLS.slRev]);
   });
 
   const dates=Object.keys(dateMap).sort();
@@ -2204,35 +2320,62 @@ function renderDailyTable(){
   }
 
   // 합계
-  let totCost=0,totMedia=0,totStore=0;
-  dates.forEach(d=>{totCost+=dateMap[d].cost;totMedia+=dateMap[d].mediaRev;totStore+=dateMap[d].storeRev;});
+  const tot={cost:0,mediaRev:0,storeRev:0,gfa:0,meta:0,power:0,shopping:0,brand:0,new_product:0};
+  dates.forEach(d=>Object.keys(tot).forEach(k=>tot[k]+=dateMap[d][k]||0));
 
-  const thead=`<thead><tr>
-    <th style="text-align:left">일자</th>
-    <th>광고비 (VAT-)</th>
-    <th>매체 매출</th>
-    <th>스토어 매출</th>
-    <th>매체 ROAS</th>
-    <th>실질 ROAS</th>
-  </tr></thead>`;
+  const thead=`<thead>
+    <tr>
+      <th style="text-align:left;min-width:80px" rowspan="2">일자</th>
+      <th colspan="7" style="text-align:center;background:var(--blue-l);color:var(--blue);border-bottom:1px solid var(--border)">광고비 (VAT-)</th>
+      <th rowspan="2">매체 매출</th>
+      <th rowspan="2">스토어 매출</th>
+      <th rowspan="2">매체 ROAS</th>
+      <th rowspan="2">실질 ROAS</th>
+      <th rowspan="2" style="text-align:left;min-width:180px">메모</th>
+    </tr>
+    <tr>
+      <th style="background:var(--blue-l);color:var(--blue)">합계</th>
+      <th style="background:var(--blue-l);color:#0C447C;font-weight:400">GFA</th>
+      <th style="background:var(--blue-l);color:#0C447C;font-weight:400">META</th>
+      <th style="background:var(--green-l);color:var(--green);font-weight:400">쇼핑검색</th>
+      <th style="background:var(--green-l);color:var(--green);font-weight:400">파워링크</th>
+      <th style="background:var(--amber-l);color:var(--amber);font-weight:400">브랜드검색</th>
+      <th style="background:var(--green-l);color:var(--green);font-weight:400">신제품검색</th>
+    </tr>
+  </thead>`;
+
+  // 메모는 memoCache에서 읽기
 
   const makeRow=(label,cost,mediaRev,storeRev,bold)=>{
     const roas=cost>0?pct(mediaRev/cost):'—';
     const roasReal=cost>0?pct(storeRev/cost):'—';
     const s=bold?'font-weight:700;border-top:2px solid var(--border-m)':'';
-    return`<tr style="${s}">
-      <td style="text-align:left;white-space:nowrap">${label}</td>
-      <td style="text-align:right">${won(cost)}</td>
-      <td style="text-align:right">${won(mediaRev)}</td>
-      <td style="text-align:right">${won(storeRev)}</td>
-      <td style="text-align:right">${roas}</td>
-      <td style="text-align:right">${roasReal}</td>
-    </tr>`;
+    const memo=bold?'':( memoCache[label]||'');
+    const memoCell=bold
+      ?'<td></td>'
+      :`<td style="padding:4px 8px;max-width:220px">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:11px;color:var(--t2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${memo||''}</span>
+            <button onclick="openMemoModal('${label}')"
+              style="flex-shrink:0;font-size:10px;padding:2px 8px;border-radius:10px;border:1px solid var(--border-m);background:transparent;color:var(--t2);cursor:pointer;white-space:nowrap">
+              ${memo?'수정':'+ 메모'}
+            </button>
+          </div>
+        </td>`;
+    return\`<tr style="\${s}">
+      <td style="text-align:left;white-space:nowrap">\${label}</td>
+      <td style="text-align:right">\${won(cost)}</td>
+      <td style="text-align:right">\${won(mediaRev)}</td>
+      <td style="text-align:right">\${won(storeRev)}</td>
+      <td style="text-align:right">\${roas}</td>
+      <td style="text-align:right">\${roasReal}</td>
+      \${memoCell}
+    </tr>\`;
   };
 
   const tbody='<tbody>'+
-    dates.map(d=>makeRow(d,dateMap[d].cost,dateMap[d].mediaRev,dateMap[d].storeRev,false)).join('')+
-    makeRow('합계',totCost,totMedia,totStore,true)+
+    dates.map(d=>makeRow(d,dateMap[d],false)).join('')+
+    makeRow('합계',tot,true)+
     '</tbody>';
 
   const tbl=document.getElementById('daily-table');
@@ -2502,6 +2645,7 @@ async function loadAll(){
 
     st.className='sp ok';stx.textContent='데이터 로드 완료';
     initDetailTableControls();
+    loadMemos().then(()=>renderDailyTable());
 
     // 기본 기간 30일로 설정
     setPeriod('30d');
