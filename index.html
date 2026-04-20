@@ -381,45 +381,55 @@ const MEMO_CSV='https://docs.google.com/spreadsheets/d/e/2PACX-1vTGKrM6s-0cb1iLx
 let memoCache={};
 
 async function loadMemos(){
+  // CSV로 로드 (공개 게시된 시트 - CORS 문제 없음)
   try{
-    // Apps Script doGet으로 JSON 로드
-    const res=await fetch(MEMO_URL);
-    const data=await res.json();
+    const res=await fetch(MEMO_CSV);
+    const text=await res.text();
     memoCache={};
-    Object.entries(data).forEach(([date,v])=>{
-      memoCache[date]=typeof v==='object'?v:{memo:v,author:'',date:''};
+    const rows=text.trim().split('\n');
+    // 헤더 행 건너뛰기
+    rows.slice(1).forEach(row=>{
+      if(!row.trim())return;
+      // CSV 파싱 (쉼표, 따옴표 처리)
+      const cols=[];
+      let cur='', inQ=false;
+      for(let i=0;i<row.length;i++){
+        if(row[i]==='"'){inQ=!inQ;}
+        else if(row[i]===','&&!inQ){cols.push(cur.trim());cur='';}
+        else cur+=row[i];
+      }
+      cols.push(cur.trim());
+      const date=(cols[0]||'').replace(/^"|"$/g,'').trim();
+      const memo=(cols[1]||'').replace(/^"|"$/g,'').trim();
+      const author=(cols[2]||'').replace(/^"|"$/g,'').trim();
+      const written=(cols[3]||'').replace(/^"|"$/g,'').trim();
+      if(date)memoCache[date]={memo,author,written};
     });
-  }catch(e){
-    // fallback: CSV
-    try{
-      const res2=await fetch(MEMO_CSV);
-      const text=await res2.text();
-      memoCache={};
-      text.trim().split('\n').slice(1).forEach(row=>{
-        const cols=row.split(',');
-        const date=(cols[0]||'').replace(/"/g,'').trim();
-        const memo=(cols[1]||'').replace(/^"|"$/g,'').trim();
-        const author=(cols[2]||'').replace(/^"|"$/g,'').trim();
-        const written=(cols[3]||'').replace(/^"|"$/g,'').trim();
-        if(date)memoCache[date]={memo,author,written};
-      });
-    }catch(e2){console.log('메모 로드 실패',e2);}
-  }
+    console.log('메모 로드 완료:', Object.keys(memoCache).length+'건');
+  }catch(e){console.log('메모 로드 실패',e);}
 }
 
 async function saveMemo(date,memo,author){
   try{
-    const res=await fetch(MEMO_URL,{method:'POST',body:JSON.stringify({action:'save',date,memo,author})});
-    const json=await res.json();
-    if(json.ok) memoCache[date]={memo,author,written:toSeoulDatetime(new Date())};
+    // Apps Script는 no-cors로 호출 (응답 못 받지만 저장됨)
+    await fetch(MEMO_URL,{
+      method:'POST',
+      mode:'no-cors',
+      body:JSON.stringify({action:'save',date,memo,author})
+    });
+    // 로컬 캐시는 즉시 업데이트
+    memoCache[date]={memo,author,written:toSeoulDatetime(new Date())};
   }catch(e){alert('메모 저장 실패: '+e.message);}
 }
 
 async function deleteMemo(date){
   try{
-    const res=await fetch(MEMO_URL,{method:'POST',body:JSON.stringify({action:'delete',date})});
-    const json=await res.json();
-    if(json.ok) delete memoCache[date];
+    await fetch(MEMO_URL,{
+      method:'POST',
+      mode:'no-cors',
+      body:JSON.stringify({action:'delete',date})
+    });
+    delete memoCache[date];
   }catch(e){alert('메모 삭제 실패: '+e.message);}
 }
 
